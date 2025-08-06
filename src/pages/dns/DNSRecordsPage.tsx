@@ -8,7 +8,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useDNSRecords } from '@/lib/hooks/useCloudflare'
 import { useLocalDNSRecords } from '@/lib/hooks/useLocalData'
 import {
-  Dns,
+  Network,
   Search,
   RefreshCw,
   Plus,
@@ -39,7 +39,7 @@ export function DNSRecordsPage() {
     per_page: 20,
     ...(searchQuery && { name: searchQuery }),
     ...(typeFilter && { type: typeFilter }),
-    ...(proxiedFilter && { proxied: proxiedFilter === 'true' }),
+    ...(proxiedFilter && { proxied: proxiedFilter }),
   }
 
   // 使用本地缓存或实时数据
@@ -196,7 +196,7 @@ export function DNSRecordsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Dns className="h-5 w-5 mr-2" />
+            <Network className="h-5 w-5 mr-2" />
             DNS 记录
             {data?.pagination && (
               <span className="ml-2 text-sm font-normal text-gray-500">
@@ -219,7 +219,7 @@ export function DNSRecordsPage() {
             </div>
           ) : data?.records?.length === 0 ? (
             <div className="text-center py-12">
-              <Dns className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <Network className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">暂无 DNS 记录</h3>
               <p className="text-gray-500 mb-6">
                 {searchQuery || typeFilter || proxiedFilter

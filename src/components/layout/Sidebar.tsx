@@ -1,14 +1,14 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { 
-  Cloud, 
-  LayoutDashboard, 
-  Globe, 
-  Dns, 
-  Code, 
-  Settings, 
-  User 
+import {
+  Cloud,
+  LayoutDashboard,
+  Globe,
+  Network,
+  Code,
+  Settings,
+  User
 } from 'lucide-react'
 
 const navigation = [
@@ -25,7 +25,7 @@ const navigation = [
   {
     name: 'DNS 记录',
     href: '/dns',
-    icon: Dns,
+    icon: Network,
   },
   {
     name: 'API 探索器',

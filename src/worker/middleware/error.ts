@@ -31,7 +31,7 @@ export function errorHandler(err: Error, c: Context<{ Bindings: Env }>) {
       error: err.message,
       code: err.code,
       details: err.details,
-    }, err.statusCode)
+    }, err.statusCode as any)
   }
 
   // Cloudflare API 错误
@@ -42,7 +42,7 @@ export function errorHandler(err: Error, c: Context<{ Bindings: Env }>) {
       message: err.message,
       code: err.code,
       details: err.errors,
-    }, err.statusCode)
+    }, err.statusCode as any)
   }
 
   // 数据库错误

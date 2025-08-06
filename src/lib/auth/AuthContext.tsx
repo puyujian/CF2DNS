@@ -63,8 +63,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true)
       const response = await authAPI.login(credentials)
       
-      if (response.success) {
-        const { user: userData, tokens } = response.data
+      if (response.success && response.data) {
+        const { user: userData, tokens } = response.data as any
         
         // 保存令牌到本地存储
         localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken)
@@ -88,8 +88,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true)
       const response = await authAPI.register(data)
       
-      if (response.success) {
-        const { user: userData, tokens } = response.data
+      if (response.success && response.data) {
+        const { user: userData, tokens } = response.data as any
         
         // 保存令牌到本地存储
         localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken)
@@ -135,8 +135,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const response = await authAPI.refreshToken(refreshTokenValue)
       
-      if (response.success) {
-        const { user: userData, tokens } = response.data
+      if (response.success && response.data) {
+        const { user: userData, tokens } = response.data as any
         
         // 更新本地存储的访问令牌
         localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken)

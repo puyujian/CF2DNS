@@ -27,7 +27,7 @@ class CloudflareAPIClient {
   ): Promise<APIResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
     
-    const defaultHeaders = {
+    const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     }
 
@@ -47,10 +47,10 @@ class CloudflareAPIClient {
 
     try {
       const response = await fetch(url, config)
-      const data = await response.json()
+      const data = await response.json() as APIResponse<T>
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`)
+        throw new Error((data as any).error || `HTTP ${response.status}`)
       }
 
       return data

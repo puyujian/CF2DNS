@@ -70,8 +70,8 @@ app.use('/api/user/*', authMiddleware)
 app.route('/api/user', userRoutes)
 
 // 静态文件服务 (SPA 支持)
-app.get('/assets/*', serveStatic({ root: './' }))
-app.get('*', serveStatic({ path: './index.html' }))
+app.get('/assets/*', serveStatic({ root: './', manifest: {} }))
+app.get('*', serveStatic({ path: './index.html', manifest: {} }))
 
 // 错误处理
 app.onError(errorHandler)

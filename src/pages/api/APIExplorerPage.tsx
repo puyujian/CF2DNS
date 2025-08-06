@@ -430,7 +430,7 @@ export function APIExplorerPage() {
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <pre className="text-xs text-gray-700 font-mono">
                             {Object.entries(response.headers).map(([key, value]) => (
-                              <div key={key}>{key}: {value}</div>
+                              <div key={key}>{key}: {String(value)}</div>
                             ))}
                           </pre>
                         </div>
