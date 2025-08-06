@@ -56,9 +56,7 @@ binding = "ASSETS"
 # pattern = "your-domain.com/*"
 # zone_name = "your-domain.com"
 
-# 兼容性设置
-[compatibility_flags]
-nodejs_compat = true
+# 兼容性设置已在第4行定义
 
 # 限制配置
 [limits]
