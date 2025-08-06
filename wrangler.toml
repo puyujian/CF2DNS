@@ -58,6 +58,6 @@ binding = "ASSETS"
 
 # 兼容性设置已在第4行定义
 
-# 限制配置
-[limits]
-cpu_ms = 50
+# 限制配置 (免费计划不支持 CPU 限制)
+# [limits]
+# cpu_ms = 50
