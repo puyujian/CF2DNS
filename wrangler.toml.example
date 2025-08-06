@@ -1,5 +1,5 @@
-# CF2DNS Cloudflare Workers 配置示例
-# 复制此文件为 wrangler.toml 并填入实际值
+# CF2DNS Cloudflare Workers 配置
+# 已配置用于部署
 
 name = "cf2dns"
 main = "src/worker/index.ts"
@@ -8,20 +8,20 @@ compatibility_flags = ["nodejs_compat"]
 
 # 环境变量
 [vars]
-ENVIRONMENT = "development"
-JWT_SECRET = "your-jwt-secret-here-please-change-this"
+ENVIRONMENT = "preview"
+JWT_SECRET = "cf2dns_jwt_2024_a8b9c7d4e5f6g1h2i3j4k5l6m7n8o9p0"
 CORS_ORIGIN = "*"
 
 # D1 数据库配置
 [[d1_databases]]
 binding = "DB"
 database_name = "cf2dns-db"
-database_id = "your-database-id-here"
+database_id = "PLACEHOLDER_DATABASE_ID"
 
 # KV 存储配置 (用于会话管理)
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "your-kv-namespace-id-here"
+id = "PLACEHOLDER_KV_NAMESPACE_ID"
 
 # 生产环境配置
 [env.production]
