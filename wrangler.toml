@@ -9,42 +9,42 @@ ENVIRONMENT = "preview"
 JWT_SECRET = "cf2dns_jwt_2024_a8b9c7d4e5f6g1h2i3j4k5l6m7n8o9p0"
 CORS_ORIGIN = "*"
 
-# D1 数据库配置
-[[d1_databases]]
-binding = "DB"
-database_name = "cf2dns-db"
-database_id = "PLACEHOLDER_DATABASE_ID"
+# D1 数据库配置 (暂时禁用，需要先创建资源)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "cf2dns-db"
+# database_id = "PLACEHOLDER_DATABASE_ID"
 
-# KV 存储配置 (用于会话管理)
-[[kv_namespaces]]
-binding = "SESSIONS"
-id = "PLACEHOLDER_KV_NAMESPACE_ID"
+# KV 存储配置 (暂时禁用，需要先创建资源)
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "PLACEHOLDER_KV_NAMESPACE_ID"
 
-# 生产环境配置
-[env.production]
-vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://your-domain.com" }
+# 生产环境配置 (暂时禁用，需要先创建资源)
+# [env.production]
+# vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://your-domain.com" }
 
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "cf2dns-db-prod"
-database_id = "PLACEHOLDER_PROD_DATABASE_ID"
+# [[env.production.d1_databases]]
+# binding = "DB"
+# database_name = "cf2dns-db-prod"
+# database_id = "PLACEHOLDER_PROD_DATABASE_ID"
 
-[[env.production.kv_namespaces]]
-binding = "SESSIONS"
-id = "PLACEHOLDER_PROD_KV_NAMESPACE_ID"
+# [[env.production.kv_namespaces]]
+# binding = "SESSIONS"
+# id = "PLACEHOLDER_PROD_KV_NAMESPACE_ID"
 
-# 预览环境配置
-[env.preview]
-vars = { ENVIRONMENT = "preview", CORS_ORIGIN = "*" }
+# 预览环境配置 (暂时禁用，需要先创建资源)
+# [env.preview]
+# vars = { ENVIRONMENT = "preview", CORS_ORIGIN = "*" }
 
-[[env.preview.d1_databases]]
-binding = "DB"
-database_name = "cf2dns-db-preview"
-database_id = "PLACEHOLDER_PREVIEW_DATABASE_ID"
+# [[env.preview.d1_databases]]
+# binding = "DB"
+# database_name = "cf2dns-db-preview"
+# database_id = "PLACEHOLDER_PREVIEW_DATABASE_ID"
 
-[[env.preview.kv_namespaces]]
-binding = "SESSIONS"
-id = "PLACEHOLDER_PREVIEW_KV_NAMESPACE_ID"
+# [[env.preview.kv_namespaces]]
+# binding = "SESSIONS"
+# id = "PLACEHOLDER_PREVIEW_KV_NAMESPACE_ID"
 
 # 静态资源配置
 [assets]
