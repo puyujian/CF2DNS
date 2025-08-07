@@ -86,6 +86,82 @@ apiRoutes.get('/test', async (c) => {
 })
 
 /**
+ * 检查用户的 Cloudflare Token 格式
+ */
+apiRoutes.get('/check-token', async (c) => {
+  try {
+    console.log('=== 检查用户Token格式 ===')
+    const user = c.get('user')
+    console.log('当前用户:', user)
+
+    // 确保数据库已初始化
+    const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
+    const isInitialized = await isDatabaseInitialized(c.env)
+
+    if (!isInitialized) {
+      await initializeDatabase(c.env)
+    }
+
+    // 获取用户的 Cloudflare 配置
+    const userConfig = await c.env.DB.prepare(`
+      SELECT cloudflare_api_token, cloudflare_email
+      FROM users
+      WHERE id = ? AND deleted_at IS NULL
+    `).bind(user.id).first()
+
+    if (!userConfig || !userConfig.cloudflare_api_token) {
+      return c.json({
+        success: false,
+        error: '请先配置 Cloudflare API 令牌'
+      }, 400)
+    }
+
+    const token = userConfig.cloudflare_api_token as string
+    const email = userConfig.cloudflare_email as string
+
+    // 分析 Token 格式
+    const tokenInfo = {
+      length: token.length,
+      prefix: token.substring(0, 10),
+      suffix: token.substring(token.length - 10),
+      hasSpecialChars: /[^a-zA-Z0-9_-]/.test(token),
+      startsWithCorrectPrefix: token.startsWith('CF_') || token.length === 40,
+      email: email || 'not set'
+    }
+
+    console.log('Token 分析:', tokenInfo)
+
+    return c.json({
+      success: true,
+      data: {
+        hasToken: true,
+        tokenLength: tokenInfo.length,
+        tokenPrefix: tokenInfo.prefix + '...',
+        tokenSuffix: '...' + tokenInfo.suffix,
+        hasSpecialChars: tokenInfo.hasSpecialChars,
+        possibleFormat: tokenInfo.length === 40 ? 'API Token' : 'Unknown',
+        email: tokenInfo.email,
+        recommendations: [
+          tokenInfo.length !== 40 ? 'Token 长度不是 40 字符，可能格式错误' : null,
+          tokenInfo.hasSpecialChars ? 'Token 包含特殊字符，可能有问题' : null,
+          !token.match(/^[a-zA-Z0-9_-]+$/) ? 'Token 格式不符合标准' : null
+        ].filter(Boolean)
+      }
+    })
+  } catch (error) {
+    console.error('检查Token格式错误:', error)
+    return c.json({
+      success: false,
+      error: '检查Token格式失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name
+      }
+    }, 500)
+  }
+})
+
+/**
  * 检查用户配置状态
  */
 apiRoutes.get('/status', async (c) => {
