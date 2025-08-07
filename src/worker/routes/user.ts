@@ -35,7 +35,7 @@ userRoutes.get('/profile', async (c) => {
     // 从数据库获取完整的用户信息
     console.log('从数据库查询用户信息...')
     const userProfile = await c.env.DB.prepare(`
-      SELECT id, email, name, avatar, cloudflare_api_token, cloudflare_email,
+      SELECT id, email, name, avatar, cloudflare_api_token, cloudflare_email, cloudflare_account_id,
              email_verified, last_login_at, created_at, updated_at
       FROM users
       WHERE id = ? AND deleted_at IS NULL
@@ -59,6 +59,7 @@ userRoutes.get('/profile', async (c) => {
       emailVerified: userProfile.email_verified,
       hasCloudflareToken: !!userProfile.cloudflare_api_token,
       cloudflareEmail: userProfile.cloudflare_email,
+      cloudflareAccountId: userProfile.cloudflare_account_id,
       lastLoginAt: userProfile.last_login_at,
       createdAt: userProfile.created_at,
       updatedAt: userProfile.updated_at,
@@ -101,14 +102,15 @@ userRoutes.put('/profile', async (c) => {
     const body = await c.req.json()
     console.log('请求数据:', body)
 
-    const { name, avatar, cloudflareApiToken, cloudflareEmail } = body
+    const { name, avatar, cloudflareApiToken, cloudflareEmail, cloudflareAccountId } = body
 
     // 处理 undefined 值，转换为 null（D1 数据库要求）
     const safeValues = {
       name: name || null,
       avatar: avatar || null,
       cloudflareApiToken: cloudflareApiToken || null,
-      cloudflareEmail: cloudflareEmail || null
+      cloudflareEmail: cloudflareEmail || null,
+      cloudflareAccountId: cloudflareAccountId || null
     }
 
     console.log('处理后的安全值:', safeValues)
@@ -129,13 +131,14 @@ userRoutes.put('/profile', async (c) => {
     console.log('执行数据库更新...')
     const updateResult = await c.env.DB.prepare(`
       UPDATE users
-      SET name = ?, avatar = ?, cloudflare_api_token = ?, cloudflare_email = ?, updated_at = CURRENT_TIMESTAMP
+      SET name = ?, avatar = ?, cloudflare_api_token = ?, cloudflare_email = ?, cloudflare_account_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
       safeValues.name,
       safeValues.avatar,
       safeValues.cloudflareApiToken,
       safeValues.cloudflareEmail,
+      safeValues.cloudflareAccountId,
       user.id
     ).run()
 

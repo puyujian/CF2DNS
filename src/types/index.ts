@@ -18,6 +18,7 @@ export interface UpdateProfileData {
   avatar?: string
   cloudflareApiToken?: string
   cloudflareEmail?: string
+  cloudflareAccountId?: string
 }
 
 export interface AuthTokens {

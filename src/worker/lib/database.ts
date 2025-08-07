@@ -16,6 +16,7 @@ export async function initializeDatabase(env: Env): Promise<void> {
         avatar TEXT,
         cloudflare_api_token TEXT,
         cloudflare_email TEXT,
+        cloudflare_account_id TEXT,
         is_active BOOLEAN DEFAULT TRUE,
         email_verified BOOLEAN DEFAULT FALSE,
         email_verification_token TEXT,
@@ -153,6 +154,10 @@ export async function initializeDatabase(env: Env): Promise<void> {
     `).run()
 
     console.log('索引创建完成')
+
+    // 运行数据库迁移
+    await runMigrations(env)
+
     console.log('数据库初始化成功完成')
   } catch (error) {
     console.error('=== 数据库初始化失败 ===')
@@ -162,6 +167,34 @@ export async function initializeDatabase(env: Env): Promise<void> {
     console.error('完整错误对象:', error)
     console.error('========================')
     throw error
+  }
+}
+
+/**
+ * 运行数据库迁移
+ */
+async function runMigrations(env: Env): Promise<void> {
+  try {
+    console.log('开始运行数据库迁移...')
+
+    // 检查是否需要添加 cloudflare_account_id 字段
+    try {
+      await env.DB.prepare(`
+        SELECT cloudflare_account_id FROM users LIMIT 1
+      `).first()
+      console.log('cloudflare_account_id 字段已存在')
+    } catch (error) {
+      console.log('添加 cloudflare_account_id 字段...')
+      await env.DB.prepare(`
+        ALTER TABLE users ADD COLUMN cloudflare_account_id TEXT
+      `).run()
+      console.log('cloudflare_account_id 字段添加成功')
+    }
+
+    console.log('数据库迁移完成')
+  } catch (error) {
+    console.error('数据库迁移失败:', error)
+    // 不抛出错误，因为迁移失败不应该阻止应用启动
   }
 }
 

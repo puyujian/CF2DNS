@@ -31,7 +31,8 @@ export function ProfilePage() {
   const [formData, setFormData] = useState({
     name: '',
     cloudflareApiToken: '',
-    cloudflareEmail: ''
+    cloudflareEmail: '',
+    cloudflareAccountId: ''
   })
 
   // 获取用户资料
@@ -47,7 +48,8 @@ export function ProfilePage() {
       setFormData({
         name: response.name,
         cloudflareApiToken: '',
-        cloudflareEmail: response.cloudflareEmail || ''
+        cloudflareEmail: response.cloudflareEmail || '',
+        cloudflareAccountId: (response as any).cloudflareAccountId || ''
       })
     } catch (err) {
       setError('获取用户资料失败')
@@ -85,7 +87,8 @@ export function ProfilePage() {
       await authAPI.updateProfile({
         name: formData.name,
         cloudflareApiToken: formData.cloudflareApiToken || undefined,
-        cloudflareEmail: formData.cloudflareEmail || undefined
+        cloudflareEmail: formData.cloudflareEmail || undefined,
+        cloudflareAccountId: formData.cloudflareAccountId || undefined
       })
 
       setSuccess('个人资料更新成功')
@@ -254,6 +257,22 @@ export function ProfilePage() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 某些 API 操作可能需要邮箱地址
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cloudflare 账户 ID
+              </label>
+              <Input
+                type="text"
+                name="cloudflareAccountId"
+                value={formData.cloudflareAccountId}
+                onChange={handleInputChange}
+                placeholder="3d2c0d85f533b167a332ff1ea2cf98ae"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                在 Cloudflare Dashboard 右侧边栏可以找到账户 ID，用于 API Token 验证
               </p>
             </div>
           </CardContent>

@@ -8,10 +8,12 @@ export class CloudflareAPI {
   private baseURL = 'https://api.cloudflare.com/client/v4'
   private apiToken: string
   private email?: string
+  private accountId?: string
 
-  constructor(apiToken: string, email?: string) {
+  constructor(apiToken: string, email?: string, accountId?: string) {
     this.apiToken = apiToken
     this.email = email
+    this.accountId = accountId
   }
 
   /**
@@ -104,12 +106,45 @@ export class CloudflareAPI {
    */
   async verifyToken(): Promise<{ id: string; status: string }> {
     console.log('=== 验证API令牌 ===')
-    console.log('请求端点: /user/tokens/verify')
-    console.log('API令牌前缀:', this.apiToken.substring(0, 10) + '...')
+    console.log('账户ID:', this.accountId)
 
-    const response = await this.request('/user/tokens/verify')
-    console.log('验证响应:', response)
-    return response.result
+    // 如果有账户ID，直接使用账户级别验证
+    if (this.accountId) {
+      console.log('使用账户级别验证:', this.accountId)
+      const response = await this.request(`/accounts/${this.accountId}/tokens/verify`)
+      console.log('账户级别验证成功:', response)
+      return response.result
+    }
+
+    // 否则尝试用户级别的验证
+    try {
+      console.log('尝试用户级别验证: /user/tokens/verify')
+      const response = await this.request('/user/tokens/verify')
+      console.log('用户级别验证成功:', response)
+      return response.result
+    } catch (userError) {
+      console.log('用户级别验证失败，尝试获取账户列表并使用账户级别验证')
+
+      // 如果用户级别验证失败，尝试获取账户列表并使用账户级别验证
+      try {
+        const accountsResponse = await this.request('/accounts')
+        const accounts = accountsResponse.result
+
+        if (accounts && accounts.length > 0) {
+          const accountId = accounts[0].id
+          console.log('使用第一个账户ID进行验证:', accountId)
+
+          const response = await this.request(`/accounts/${accountId}/tokens/verify`)
+          console.log('账户级别验证成功:', response)
+          return response.result
+        } else {
+          throw new Error('无法获取账户信息')
+        }
+      } catch (accountError) {
+        console.error('账户级别验证也失败:', accountError)
+        throw userError // 抛出原始错误
+      }
+    }
   }
 
   /**

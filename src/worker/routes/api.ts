@@ -40,7 +40,7 @@ export const apiRoutes = new Hono<{ Bindings: Env }>()
  */
 async function getCloudflareClient(db: D1Database, userId: string): Promise<CloudflareAPI> {
   const user = await db.prepare(`
-    SELECT cloudflare_api_token, cloudflare_email
+    SELECT cloudflare_api_token, cloudflare_email, cloudflare_account_id
     FROM users
     WHERE id = ? AND deleted_at IS NULL
   `).bind(userId).first()
@@ -51,7 +51,8 @@ async function getCloudflareClient(db: D1Database, userId: string): Promise<Clou
 
   return new CloudflareAPI(
     user.cloudflare_api_token as string,
-    user.cloudflare_email as string || undefined
+    user.cloudflare_email as string || undefined,
+    user.cloudflare_account_id as string || undefined
   )
 }
 
@@ -297,7 +298,7 @@ apiRoutes.get('/verify-token', async (c) => {
 
     // 获取用户的 Cloudflare 配置
     const userConfig = await c.env.DB.prepare(`
-      SELECT cloudflare_api_token, cloudflare_email
+      SELECT cloudflare_api_token, cloudflare_email, cloudflare_account_id
       FROM users
       WHERE id = ? AND deleted_at IS NULL
     `).bind(user.id).first()
@@ -325,7 +326,8 @@ apiRoutes.get('/verify-token', async (c) => {
     // 创建 Cloudflare API 客户端并验证令牌
     const cfAPI = new CloudflareAPI(
       apiToken,
-      userConfig.cloudflare_email as string || undefined
+      userConfig.cloudflare_email as string || undefined,
+      userConfig.cloudflare_account_id as string || undefined
     )
 
     try {
