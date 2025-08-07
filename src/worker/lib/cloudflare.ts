@@ -56,12 +56,32 @@ export class CloudflareAPI {
 
       if (!data.success) {
         console.error('Cloudflare API 错误详情:', data.errors)
-        throw new CloudflareAPIError(
-          data.errors?.[0]?.message || 'Cloudflare API error',
-          data.errors?.[0]?.code || response.status,
+        const errorMessage = data.errors?.[0]?.message || 'Cloudflare API error'
+        const errorCode = data.errors?.[0]?.code || response.status
+
+        // 为调试添加更多信息
+        const debugInfo = {
+          url,
+          method: config.method || 'GET',
+          requestHeaders: config.headers,
+          responseStatus: response.status,
+          responseData: data,
+          apiTokenPrefix: this.apiToken.substring(0, 10) + '...'
+        }
+
+        console.error('完整调试信息:', debugInfo)
+
+        const error = new CloudflareAPIError(
+          errorMessage,
+          errorCode,
           response.status,
           data.errors
         )
+
+        // 将调试信息附加到错误对象
+        ;(error as any).debugInfo = debugInfo
+
+        throw error
       }
 
       return data

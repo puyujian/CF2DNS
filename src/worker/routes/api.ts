@@ -328,13 +328,29 @@ apiRoutes.get('/verify-token', async (c) => {
       userConfig.cloudflare_email as string || undefined
     )
 
-    const tokenInfo = await cfAPI.verifyToken()
-
-    return c.json({
-      success: true,
-      message: 'API 令牌验证成功',
-      data: tokenInfo
-    })
+    try {
+      const tokenInfo = await cfAPI.verifyToken()
+      return c.json({
+        success: true,
+        message: 'API 令牌验证成功',
+        data: tokenInfo
+      })
+    } catch (cfError) {
+      // 返回详细的调试信息
+      return c.json({
+        success: false,
+        error: 'Cloudflare API 验证失败',
+        debug: {
+          savedToken: apiToken,
+          tokenLength: apiToken.length,
+          tokenPrefix: apiToken.substring(0, 10) + '...',
+          email: userConfig.cloudflare_email,
+          errorMessage: (cfError as any)?.message,
+          errorName: (cfError as any)?.name,
+          errorStack: (cfError as any)?.stack
+        }
+      }, 400)
+    }
   } catch (error) {
     console.error('验证Cloudflare令牌错误:', error)
     return c.json({
