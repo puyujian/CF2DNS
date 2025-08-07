@@ -56,6 +56,57 @@ async function getCloudflareClient(db: D1Database, userId: string): Promise<Clou
 }
 
 /**
+ * 检查用户配置状态
+ */
+apiRoutes.get('/status', async (c) => {
+  try {
+    console.log('=== 检查用户配置状态 ===')
+    const user = c.get('user')
+    console.log('当前用户:', user)
+
+    // 确保数据库已初始化
+    const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
+    const isInitialized = await isDatabaseInitialized(c.env)
+
+    if (!isInitialized) {
+      await initializeDatabase(c.env)
+    }
+
+    // 查询用户的 Cloudflare 配置
+    const userConfig = await c.env.DB.prepare(`
+      SELECT cloudflare_api_token, cloudflare_email
+      FROM users
+      WHERE id = ? AND deleted_at IS NULL
+    `).bind(user.id).first()
+
+    console.log('用户配置:', {
+      hasToken: !!userConfig?.cloudflare_api_token,
+      hasEmail: !!userConfig?.cloudflare_email
+    })
+
+    return c.json({
+      success: true,
+      data: {
+        userId: user.id,
+        hasCloudflareToken: !!userConfig?.cloudflare_api_token,
+        hasCloudflareEmail: !!userConfig?.cloudflare_email,
+        databaseInitialized: isInitialized
+      }
+    })
+  } catch (error) {
+    console.error('检查用户配置状态错误:', error)
+    return c.json({
+      success: false,
+      error: '检查配置状态失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name
+      }
+    }, 500)
+  }
+})
+
+/**
  * 验证 Cloudflare API 令牌
  */
 apiRoutes.post('/verify-token', async (c) => {
