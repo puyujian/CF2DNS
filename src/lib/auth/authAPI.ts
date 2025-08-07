@@ -1,4 +1,4 @@
-import { LoginCredentials, RegisterData, User } from '@/types'
+import { LoginCredentials, RegisterData, User, UpdateProfileData } from '@/types'
 import { API_ENDPOINTS, STORAGE_KEYS } from '@/lib/constants'
 
 interface APIResponse<T = any> {
@@ -128,11 +128,17 @@ class AuthAPI {
   /**
    * 更新用户资料
    */
-  async updateProfile(data: Partial<User>): Promise<APIResponse<User>> {
-    return this.request<User>(API_ENDPOINTS.USER_PROFILE, {
+  async updateProfile(data: UpdateProfileData): Promise<User> {
+    const response = await this.request<User>(API_ENDPOINTS.USER_PROFILE, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error || '更新用户资料失败')
+    }
+
+    return response.data
   }
 
   /**

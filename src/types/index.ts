@@ -4,8 +4,20 @@ export interface User {
   email: string
   name: string
   avatar?: string
+  emailVerified?: boolean
+  hasCloudflareToken?: boolean
+  cloudflareEmail?: string
+  lastLoginAt?: string
   createdAt: string
   updatedAt: string
+}
+
+// 用户资料更新数据
+export interface UpdateProfileData {
+  name?: string
+  avatar?: string
+  cloudflareApiToken?: string
+  cloudflareEmail?: string
 }
 
 export interface AuthTokens {

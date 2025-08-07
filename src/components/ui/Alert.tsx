@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react'
 
 interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'success' | 'error' | 'warning' | 'info'
+  variant?: 'success' | 'error' | 'warning' | 'info' | 'destructive'
   title?: string
   children: React.ReactNode
   onClose?: () => void
@@ -12,23 +12,28 @@ interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const variantConfig = {
   success: {
-    containerClass: 'bg-success-50 border-success-200 text-success-800',
-    iconClass: 'text-success-600',
+    containerClass: 'bg-green-50 border-green-200 text-green-800',
+    iconClass: 'text-green-600',
     icon: CheckCircle,
   },
   error: {
-    containerClass: 'bg-error-50 border-error-200 text-error-800',
-    iconClass: 'text-error-600',
+    containerClass: 'bg-red-50 border-red-200 text-red-800',
+    iconClass: 'text-red-600',
+    icon: AlertCircle,
+  },
+  destructive: {
+    containerClass: 'bg-red-50 border-red-200 text-red-800',
+    iconClass: 'text-red-600',
     icon: AlertCircle,
   },
   warning: {
-    containerClass: 'bg-warning-50 border-warning-200 text-warning-800',
-    iconClass: 'text-warning-600',
+    containerClass: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    iconClass: 'text-yellow-600',
     icon: AlertTriangle,
   },
   info: {
-    containerClass: 'bg-primary-50 border-primary-200 text-primary-800',
-    iconClass: 'text-primary-600',
+    containerClass: 'bg-blue-50 border-blue-200 text-blue-800',
+    iconClass: 'text-blue-600',
     icon: Info,
   },
 }
@@ -75,10 +80,10 @@ export function Alert({
                 type="button"
                 className={cn(
                   'inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2',
-                  variant === 'success' && 'text-success-500 hover:bg-success-100 focus:ring-success-600',
-                  variant === 'error' && 'text-error-500 hover:bg-error-100 focus:ring-error-600',
-                  variant === 'warning' && 'text-warning-500 hover:bg-warning-100 focus:ring-warning-600',
-                  variant === 'info' && 'text-primary-500 hover:bg-primary-100 focus:ring-primary-600'
+                  variant === 'success' && 'text-green-500 hover:bg-green-100 focus:ring-green-600',
+                  (variant === 'error' || variant === 'destructive') && 'text-red-500 hover:bg-red-100 focus:ring-red-600',
+                  variant === 'warning' && 'text-yellow-500 hover:bg-yellow-100 focus:ring-yellow-600',
+                  variant === 'info' && 'text-blue-500 hover:bg-blue-100 focus:ring-blue-600'
                 )}
                 onClick={onClose}
               >
