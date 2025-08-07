@@ -6,6 +6,7 @@ import { serveStatic } from 'hono/cloudflare-workers'
 
 // 路由模块
 import { authRoutes } from './routes/auth'
+import { authTestRoutes } from './routes/auth-test'
 import { zonesRoutes } from './routes/zones'
 import { dnsRoutes } from './routes/dns'
 import { apiRoutes } from './routes/api'
@@ -18,8 +19,8 @@ import { rateLimiter } from './middleware/rateLimit'
 
 // 类型定义
 export interface Env {
-  DB: D1Database
-  SESSIONS: KVNamespace
+  DB?: D1Database
+  SESSIONS?: KVNamespace
   ASSETS: Fetcher
   JWT_SECRET: string
   ENVIRONMENT: string
@@ -61,6 +62,7 @@ app.get('/health', (c) => {
 
 // API 路由
 app.route('/api/auth', authRoutes)
+app.route('/api/auth-test', authTestRoutes)
 app.route('/api/zones', zonesRoutes)
 app.route('/api/dns', dnsRoutes)
 app.route('/api/cloudflare', apiRoutes)

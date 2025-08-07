@@ -9,16 +9,16 @@ ENVIRONMENT = "preview"
 JWT_SECRET = "cf2dns_jwt_2024_a8b9c7d4e5f6g1h2i3j4k5l6m7n8o9p0"
 CORS_ORIGIN = "*"
 
-# D1 数据库配置
-[[d1_databases]]
-binding = "DB"
-database_name = "cf2dns"
-database_id = "e7a37f5e-0711-4b83-a5f7-c7dfeb901abe"
+# D1 数据库配置 (临时禁用以解决wrangler问题)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "cf2dns"
+# database_id = "e7a37f5e-0711-4b83-a5f7-c7dfeb901abe"
 
-# KV 存储配置
-[[kv_namespaces]]
-binding = "SESSIONS"
-id = "58dfc57f847941a29902f9e139332690"
+# KV 存储配置 (临时禁用以解决wrangler问题)
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "58dfc57f847941a29902f9e139332690"
 
 # 生产环境配置 (暂时禁用，需要先创建资源)
 # [env.production]

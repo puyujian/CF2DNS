@@ -5,6 +5,7 @@ import type { Env } from '../index'
 import { generateId } from '../../lib/utils'
 import { BusinessError, ValidationError } from '../middleware/error'
 import { authRateLimiter } from '../middleware/rateLimit'
+import { initializeDatabase, isDatabaseInitialized } from '../lib/database'
 
 // 验证模式
 const loginSchema = z.object({
@@ -51,6 +52,12 @@ authRoutes.use('*', authRateLimiter)
  */
 authRoutes.post('/register', async (c) => {
   try {
+    // 确保数据库已初始化
+    const isInitialized = await isDatabaseInitialized(c.env)
+    if (!isInitialized) {
+      await initializeDatabase(c.env)
+    }
+
     const body = await c.req.json()
     const validatedData = registerSchema.parse(body)
 
@@ -116,6 +123,12 @@ authRoutes.post('/register', async (c) => {
  */
 authRoutes.post('/login', async (c) => {
   try {
+    // 确保数据库已初始化
+    const isInitialized = await isDatabaseInitialized(c.env)
+    if (!isInitialized) {
+      await initializeDatabase(c.env)
+    }
+
     const body = await c.req.json()
     const validatedData = loginSchema.parse(body)
 
