@@ -80,8 +80,20 @@ app.get('/assets/*', async (c) => {
   }
 })
 
-// SPA 路由支持 - 对于非API路径返回 index.html
-app.get('*', async (c) => {
+// 错误处理
+app.onError(errorHandler)
+
+// 404 处理
+app.notFound(async (c) => {
+  if (c.req.path.startsWith('/api/')) {
+    return c.json({
+      success: false,
+      error: 'API endpoint not found',
+      path: c.req.path
+    }, 404)
+  }
+
+  // 对于非 API 路径，返回 index.html (SPA 路由支持)
   try {
     const url = new URL(c.req.url)
     url.pathname = '/index.html'
@@ -105,27 +117,6 @@ app.get('*', async (c) => {
       </html>
     `)
   }
-})
-
-// 错误处理
-app.onError(errorHandler)
-
-// 404 处理
-app.notFound((c) => {
-  if (c.req.path.startsWith('/api/')) {
-    return c.json({
-      success: false,
-      error: 'API endpoint not found',
-      path: c.req.path
-    }, 404)
-  }
-
-  // 对于非 API 路径，已经在上面的通配符路由中处理了
-  return c.json({
-    success: false,
-    error: 'Page not found',
-    path: c.req.path
-  }, 404)
 })
 
 export default app
