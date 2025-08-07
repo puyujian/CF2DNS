@@ -28,9 +28,8 @@ export class CloudflareAPI {
       'Authorization': `Bearer ${this.apiToken}`,
     }
 
-    if (this.email) {
-      headers['X-Auth-Email'] = this.email
-    }
+    // 注意：使用 API Token 时不需要 X-Auth-Email 头
+    // X-Auth-Email 只在使用 Global API Key 时才需要
 
     const config: RequestInit = {
       ...options,
@@ -254,7 +253,6 @@ export class CloudflareAPI {
     const response = await fetch(`${this.baseURL}/zones/${zoneId}/dns_records/export`, {
       headers: {
         'Authorization': `Bearer ${this.apiToken}`,
-        ...(this.email && { 'X-Auth-Email': this.email }),
       },
     })
 
@@ -280,7 +278,6 @@ export class CloudflareAPI {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiToken}`,
-        ...(this.email && { 'X-Auth-Email': this.email }),
       },
       body: formData,
     })
