@@ -60,14 +60,16 @@ app.get('/health', (c) => {
   })
 })
 
-// API 路由
+// 不需要认证的API路由
 app.route('/api/auth', authRoutes)
 app.route('/api/auth-test', authTestRoutes)
+
+// 需要认证的API路由
 app.route('/api/zones', zonesRoutes)
 app.route('/api/dns', dnsRoutes)
 app.route('/api/cloudflare', apiRoutes)
 
-// 需要认证的路由
+// 用户相关路由 (需要认证)
 app.use('/api/user/*', authMiddleware)
 app.route('/api/user', userRoutes)
 

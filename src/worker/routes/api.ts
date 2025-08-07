@@ -33,7 +33,8 @@ export const apiRoutes = new Hono<{ Bindings: Env }>()
 
 // 应用认证和速率限制
 apiRoutes.use('*', authMiddleware)
-apiRoutes.use('*', cloudflareRateLimiter)
+// 临时禁用速率限制以排查问题
+// apiRoutes.use('*', cloudflareRateLimiter)
 
 /**
  * 获取用户的 Cloudflare API 客户端
