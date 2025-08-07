@@ -8,50 +8,83 @@ export const userRoutes = new Hono<{ Bindings: Env }>()
  */
 userRoutes.get('/profile', async (c) => {
   try {
+    console.log('=== 获取用户资料开始 ===')
     const user = c.get('user')
-    
+    console.log('当前用户:', user)
+
     if (!user) {
+      console.log('用户未找到')
       return c.json({
         success: false,
         error: 'User not found'
       }, 401)
     }
 
+    // 确保数据库已初始化
+    console.log('检查数据库初始化状态...')
+    const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
+    const isInitialized = await isDatabaseInitialized(c.env)
+    console.log('数据库初始化状态:', isInitialized)
+
+    if (!isInitialized) {
+      console.log('开始初始化数据库...')
+      await initializeDatabase(c.env)
+      console.log('数据库初始化完成')
+    }
+
     // 从数据库获取完整的用户信息
+    console.log('从数据库查询用户信息...')
     const userProfile = await c.env.DB.prepare(`
-      SELECT id, email, name, avatar, cloudflare_api_token, cloudflare_email, 
+      SELECT id, email, name, avatar, cloudflare_api_token, cloudflare_email,
              email_verified, last_login_at, created_at, updated_at
-      FROM users 
+      FROM users
       WHERE id = ? AND deleted_at IS NULL
     `).bind(user.id).first()
 
+    console.log('数据库查询结果:', userProfile)
+
     if (!userProfile) {
+      console.log('用户资料不存在')
       return c.json({
         success: false,
         error: 'User profile not found'
       }, 404)
     }
 
+    const responseData = {
+      id: userProfile.id,
+      email: userProfile.email,
+      name: userProfile.name,
+      avatar: userProfile.avatar,
+      emailVerified: userProfile.email_verified,
+      hasCloudflareToken: !!userProfile.cloudflare_api_token,
+      cloudflareEmail: userProfile.cloudflare_email,
+      lastLoginAt: userProfile.last_login_at,
+      createdAt: userProfile.created_at,
+      updatedAt: userProfile.updated_at,
+    }
+
+    console.log('返回用户资料:', responseData)
     return c.json({
       success: true,
-      data: {
-        id: userProfile.id,
-        email: userProfile.email,
-        name: userProfile.name,
-        avatar: userProfile.avatar,
-        emailVerified: userProfile.email_verified,
-        hasCloudflareToken: !!userProfile.cloudflare_api_token,
-        cloudflareEmail: userProfile.cloudflare_email,
-        lastLoginAt: userProfile.last_login_at,
-        createdAt: userProfile.created_at,
-        updatedAt: userProfile.updated_at,
-      }
+      data: responseData
     })
   } catch (error) {
-    console.error('Get user profile error:', error)
+    console.error('=== 获取用户资料错误 ===')
+    console.error('错误类型:', (error as any)?.constructor?.name)
+    console.error('错误消息:', (error as any)?.message)
+    console.error('错误栈:', (error as any)?.stack)
+    console.error('完整错误对象:', error)
+    console.error('========================')
+
     return c.json({
       success: false,
-      error: 'Failed to get user profile'
+      error: 'Failed to get user profile',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name,
+        stack: (error as any)?.stack
+      }
     }, 500)
   }
 })
@@ -61,27 +94,80 @@ userRoutes.get('/profile', async (c) => {
  */
 userRoutes.put('/profile', async (c) => {
   try {
+    console.log('=== 更新用户资料开始 ===')
     const user = c.get('user')
+    console.log('当前用户:', user)
+
     const body = await c.req.json()
-    
+    console.log('请求数据:', body)
+
     const { name, avatar, cloudflareApiToken, cloudflareEmail } = body
 
+    // 确保数据库已初始化
+    console.log('检查数据库初始化状态...')
+    const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
+    const isInitialized = await isDatabaseInitialized(c.env)
+    console.log('数据库初始化状态:', isInitialized)
+
+    if (!isInitialized) {
+      console.log('开始初始化数据库...')
+      await initializeDatabase(c.env)
+      console.log('数据库初始化完成')
+    }
+
     // 更新用户信息
-    await c.env.DB.prepare(`
-      UPDATE users 
+    console.log('执行数据库更新...')
+    const updateResult = await c.env.DB.prepare(`
+      UPDATE users
       SET name = ?, avatar = ?, cloudflare_api_token = ?, cloudflare_email = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(name, avatar, cloudflareApiToken, cloudflareEmail, user.id).run()
 
+    console.log('数据库更新结果:', updateResult)
+
+    // 获取更新后的用户信息
+    console.log('获取更新后的用户信息...')
+    const updatedUser = await c.env.DB.prepare(`
+      SELECT id, email, name, avatar, email_verified, cloudflare_api_token, cloudflare_email,
+             last_login_at, created_at, updated_at
+      FROM users
+      WHERE id = ? AND deleted_at IS NULL
+    `).bind(user.id).first()
+
+    console.log('更新后的用户信息:', updatedUser)
+
     return c.json({
       success: true,
-      message: 'Profile updated successfully'
+      message: 'Profile updated successfully',
+      data: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        avatar: updatedUser.avatar,
+        emailVerified: updatedUser.email_verified,
+        hasCloudflareToken: !!updatedUser.cloudflare_api_token,
+        cloudflareEmail: updatedUser.cloudflare_email,
+        lastLoginAt: updatedUser.last_login_at,
+        createdAt: updatedUser.created_at,
+        updatedAt: updatedUser.updated_at,
+      }
     })
   } catch (error) {
-    console.error('Update user profile error:', error)
+    console.error('=== 更新用户资料错误 ===')
+    console.error('错误类型:', (error as any)?.constructor?.name)
+    console.error('错误消息:', (error as any)?.message)
+    console.error('错误栈:', (error as any)?.stack)
+    console.error('完整错误对象:', error)
+    console.error('========================')
+
     return c.json({
       success: false,
-      error: 'Failed to update profile'
+      error: 'Failed to update profile',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name,
+        stack: (error as any)?.stack
+      }
     }, 500)
   }
 })
