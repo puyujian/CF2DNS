@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { serveStatic } from 'hono/cloudflare-workers'
+// import { serveStatic } from 'hono/cloudflare-workers'
 
 // 路由模块
 import { authRoutes } from './routes/auth'
@@ -71,9 +71,41 @@ app.route('/api/cloudflare', apiRoutes)
 app.use('/api/user/*', authMiddleware)
 app.route('/api/user', userRoutes)
 
-// 静态文件服务 (SPA 支持)
-app.get('/assets/*', serveStatic({ root: './' }))
-app.get('*', serveStatic({ path: './index.html' }))
+// 静态文件服务 (使用 ASSETS 绑定)
+app.get('/assets/*', async (c) => {
+  try {
+    return await c.env.ASSETS.fetch(c.req.raw)
+  } catch (error) {
+    return c.notFound()
+  }
+})
+
+// SPA 路由支持 - 对于非API路径返回 index.html
+app.get('*', async (c) => {
+  try {
+    const url = new URL(c.req.url)
+    url.pathname = '/index.html'
+    return await c.env.ASSETS.fetch(url.toString())
+  } catch (error) {
+    return c.html(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>CF2DNS</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body>
+          <div id="root">
+            <h1>CF2DNS</h1>
+            <p>应用正在加载中...</p>
+            <p>请确保静态资源已正确部署。</p>
+          </div>
+        </body>
+      </html>
+    `)
+  }
+})
 
 // 错误处理
 app.onError(errorHandler)
@@ -88,26 +120,12 @@ app.notFound((c) => {
     }, 404)
   }
 
-  // 对于非 API 路径，返回 index.html (SPA 路由)
-  try {
-    return c.env.ASSETS.fetch(c.req.url.replace(c.req.path, '/index.html'))
-  } catch (error) {
-    // 如果静态资源服务失败，返回简单的HTML页面
-    return c.html(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>CF2DNS</title>
-          <meta charset="utf-8">
-        </head>
-        <body>
-          <h1>CF2DNS</h1>
-          <p>应用正在加载中...</p>
-          <p>如果看到此页面，说明静态资源配置需要调整。</p>
-        </body>
-      </html>
-    `)
-  }
+  // 对于非 API 路径，已经在上面的通配符路由中处理了
+  return c.json({
+    success: false,
+    error: 'Page not found',
+    path: c.req.path
+  }, 404)
 })
 
 export default app
