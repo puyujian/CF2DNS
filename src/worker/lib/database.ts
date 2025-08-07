@@ -47,7 +47,75 @@ export async function initializeDatabase(env: Env): Promise<void> {
     `).run()
     console.log('用户会话表创建结果:', sessionTableResult)
 
+    console.log('开始创建Cloudflare域名表...')
+    // 创建Cloudflare域名表
+    const zonesTableResult = await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS cloudflare_zones (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        zone_id TEXT NOT NULL,
+        zone_name TEXT NOT NULL,
+        status TEXT NOT NULL,
+        paused BOOLEAN DEFAULT FALSE,
+        type TEXT DEFAULT 'full',
+        development_mode INTEGER DEFAULT 0,
+        name_servers TEXT,
+        original_name_servers TEXT,
+        original_registrar TEXT,
+        original_dnshost TEXT,
+        account_id TEXT,
+        account_name TEXT,
+        plan_id TEXT,
+        plan_name TEXT,
+        permissions TEXT,
+        meta TEXT,
+        owner TEXT,
+        created_on DATETIME,
+        modified_on DATETIME,
+        activated_on DATETIME,
+        last_synced_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, zone_id)
+      )
+    `).run()
+    console.log('Cloudflare域名表创建结果:', zonesTableResult)
+
+    console.log('开始创建DNS记录表...')
+    // 创建DNS记录表
+    const dnsRecordsTableResult = await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS dns_records (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        zone_id TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        zone_name TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        proxiable BOOLEAN DEFAULT FALSE,
+        proxied BOOLEAN DEFAULT FALSE,
+        ttl INTEGER DEFAULT 1,
+        locked BOOLEAN DEFAULT FALSE,
+        meta TEXT,
+        comment TEXT,
+        tags TEXT,
+        priority INTEGER,
+        created_on DATETIME,
+        modified_on DATETIME,
+        last_synced_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (zone_id) REFERENCES cloudflare_zones(zone_id) ON DELETE CASCADE,
+        UNIQUE(user_id, record_id)
+      )
+    `).run()
+    console.log('DNS记录表创建结果:', dnsRecordsTableResult)
+
     // 创建索引
+    console.log('开始创建索引...')
     await env.DB.prepare(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
     `).run()
@@ -64,6 +132,27 @@ export async function initializeDatabase(env: Env): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(is_active, expires_at)
     `).run()
 
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_cloudflare_zones_user_id ON cloudflare_zones(user_id)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_cloudflare_zones_zone_name ON cloudflare_zones(zone_name)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_dns_records_user_id ON dns_records(user_id)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_dns_records_zone_id ON dns_records(zone_id)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_dns_records_name_type ON dns_records(name, type)
+    `).run()
+
+    console.log('索引创建完成')
     console.log('数据库初始化成功完成')
   } catch (error) {
     console.error('=== 数据库初始化失败 ===')
