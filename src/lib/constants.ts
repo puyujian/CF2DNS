@@ -99,39 +99,39 @@ export const OPERATION_STATUS = {
 // API 端点
 export const API_ENDPOINTS = {
   // 认证相关
-  LOGIN: '/api/auth/login',
-  REGISTER: '/api/auth/register',
-  LOGOUT: '/api/auth/logout',
-  REFRESH: '/api/auth/refresh',
-  VERIFY_EMAIL: '/api/auth/verify-email',
-  FORGOT_PASSWORD: '/api/auth/forgot-password',
-  RESET_PASSWORD: '/api/auth/reset-password',
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  LOGOUT: '/auth/logout',
+  REFRESH: '/auth/refresh',
+  VERIFY_EMAIL: '/auth/verify-email',
+  FORGOT_PASSWORD: '/auth/forgot-password',
+  RESET_PASSWORD: '/auth/reset-password',
   
   // 用户相关
-  USER_PROFILE: '/api/user/profile',
-  USER_SETTINGS: '/api/user/settings',
-  USER_API_TOKENS: '/api/user/api-tokens',
-  
+  USER_PROFILE: '/user/profile',
+  USER_SETTINGS: '/user/settings',
+  USER_API_TOKENS: '/user/api-tokens',
+
   // Cloudflare 相关
-  CF_ACCOUNTS: '/api/cloudflare/accounts',
-  CF_ZONES: '/api/cloudflare/zones',
-  CF_DNS_RECORDS: '/api/cloudflare/dns-records',
-  CF_ZONE_SETTINGS: '/api/cloudflare/zone-settings',
-  
+  CF_ACCOUNTS: '/cloudflare/accounts',
+  CF_ZONES: '/cloudflare/zones',
+  CF_DNS_RECORDS: '/cloudflare/dns-records',
+  CF_ZONE_SETTINGS: '/cloudflare/zone-settings',
+
   // 域名管理
-  ZONES: '/api/zones',
-  ZONE_DETAIL: '/api/zones/:id',
-  ZONE_SYNC: '/api/zones/:id/sync',
-  
+  ZONES: '/zones',
+  ZONE_DETAIL: '/zones/:id',
+  ZONE_SYNC: '/zones/:id/sync',
+
   // DNS 记录管理
-  DNS_RECORDS: '/api/dns/records',
-  DNS_RECORD_DETAIL: '/api/dns/records/:id',
-  DNS_BULK_OPERATIONS: '/api/dns/bulk',
-  
+  DNS_RECORDS: '/dns/records',
+  DNS_RECORD_DETAIL: '/dns/records/:id',
+  DNS_BULK_OPERATIONS: '/dns/bulk',
+
   // 统计和历史
-  DASHBOARD_STATS: '/api/dashboard/stats',
-  OPERATION_HISTORY: '/api/history/operations',
-  API_CALL_LOGS: '/api/history/api-calls',
+  DASHBOARD_STATS: '/dashboard/stats',
+  OPERATION_HISTORY: '/history/operations',
+  API_CALL_LOGS: '/history/api-calls',
 } as const
 
 // 本地存储键名

@@ -47,8 +47,8 @@ app.use('*', async (c, next) => {
   return corsMiddleware(c, next)
 })
 
-// 速率限制
-app.use('/api/*', rateLimiter)
+// 临时禁用全局速率限制以排查问题
+// app.use('/api/*', rateLimiter)
 
 // 健康检查端点
 app.get('/health', (c) => {

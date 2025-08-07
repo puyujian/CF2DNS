@@ -44,8 +44,8 @@ const refreshTokenSchema = z.object({
 
 export const authRoutes = new Hono<{ Bindings: Env }>()
 
-// 应用速率限制
-authRoutes.use('*', authRateLimiter)
+// 临时禁用速率限制以排查问题
+// authRoutes.use('*', authRateLimiter)
 
 /**
  * 用户注册
