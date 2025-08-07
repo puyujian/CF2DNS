@@ -72,8 +72,8 @@ app.use('/api/user/*', authMiddleware)
 app.route('/api/user', userRoutes)
 
 // 静态文件服务 (SPA 支持)
-app.get('/assets/*', serveStatic({ root: './', manifest: {} }))
-app.get('*', serveStatic({ path: './index.html', manifest: {} }))
+app.get('/assets/*', serveStatic({ root: './' }))
+app.get('*', serveStatic({ path: './index.html' }))
 
 // 错误处理
 app.onError(errorHandler)
@@ -87,9 +87,27 @@ app.notFound((c) => {
       path: c.req.path
     }, 404)
   }
-  
+
   // 对于非 API 路径，返回 index.html (SPA 路由)
-  return c.env.ASSETS.fetch(c.req.url.replace(c.req.path, '/index.html'))
+  try {
+    return c.env.ASSETS.fetch(c.req.url.replace(c.req.path, '/index.html'))
+  } catch (error) {
+    // 如果静态资源服务失败，返回简单的HTML页面
+    return c.html(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>CF2DNS</title>
+          <meta charset="utf-8">
+        </head>
+        <body>
+          <h1>CF2DNS</h1>
+          <p>应用正在加载中...</p>
+          <p>如果看到此页面，说明静态资源配置需要调整。</p>
+        </body>
+      </html>
+    `)
+  }
 })
 
 export default app
