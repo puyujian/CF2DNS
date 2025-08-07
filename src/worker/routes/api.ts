@@ -56,6 +56,36 @@ async function getCloudflareClient(db: D1Database, userId: string): Promise<Clou
 }
 
 /**
+ * 简单测试端点
+ */
+apiRoutes.get('/test', async (c) => {
+  try {
+    console.log('=== API测试端点 ===')
+    const user = c.get('user')
+    console.log('用户:', user)
+
+    return c.json({
+      success: true,
+      message: 'API测试成功',
+      data: {
+        userId: user?.id,
+        timestamp: new Date().toISOString()
+      }
+    })
+  } catch (error) {
+    console.error('API测试错误:', error)
+    return c.json({
+      success: false,
+      error: 'API测试失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name
+      }
+    }, 500)
+  }
+})
+
+/**
  * 检查用户配置状态
  */
 apiRoutes.get('/status', async (c) => {
@@ -181,8 +211,25 @@ apiRoutes.get('/accounts', async (c) => {
  */
 apiRoutes.get('/zones', async (c) => {
   try {
+    console.log('=== 获取Cloudflare域名列表开始 ===')
+    console.log('请求URL:', c.req.url)
+    console.log('请求方法:', c.req.method)
+    console.log('请求头:', Object.fromEntries(c.req.raw.headers.entries()))
+
     const user = c.get('user')
+    console.log('当前用户:', user)
+
+    if (!user) {
+      console.log('用户未找到')
+      return c.json({
+        success: false,
+        error: 'User not found'
+      }, 401)
+    }
+
+    console.log('开始获取Cloudflare客户端...')
     const cfAPI = await getCloudflareClient(c.env.DB, user.id)
+    console.log('Cloudflare客户端获取成功')
 
     // 获取查询参数
     const page = parseInt(c.req.query('page') || '1')
@@ -231,16 +278,28 @@ apiRoutes.get('/zones', async (c) => {
       ).run()
     }
 
+    console.log('域名列表获取成功，返回数据')
     return c.json({
       success: true,
       data: zones,
       pagination: result_info
     })
   } catch (error) {
-    console.error('Get Cloudflare zones error:', error)
+    console.error('=== 获取Cloudflare域名列表错误 ===')
+    console.error('错误类型:', (error as any)?.constructor?.name)
+    console.error('错误消息:', (error as any)?.message)
+    console.error('错误栈:', (error as any)?.stack)
+    console.error('完整错误对象:', error)
+    console.error('========================')
+
     return c.json({
       success: false,
-      error: error instanceof Error ? error.message : '获取域名列表失败'
+      error: error instanceof Error ? error.message : '获取域名列表失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name,
+        stack: (error as any)?.stack
+      }
     }, 500)
   }
 })
