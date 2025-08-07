@@ -19,8 +19,8 @@ import { rateLimiter } from './middleware/rateLimit'
 
 // 类型定义
 export interface Env {
-  DB?: D1Database
-  SESSIONS?: KVNamespace
+  DB: D1Database
+  SESSIONS: KVNamespace
   ASSETS: Fetcher
   JWT_SECRET: string
   ENVIRONMENT: string

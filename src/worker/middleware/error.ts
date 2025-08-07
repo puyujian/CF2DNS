@@ -6,14 +6,25 @@ import type { Env } from '../index'
  * 全局错误处理中间件
  */
 export function errorHandler(err: Error, c: Context<{ Bindings: Env }>) {
-  console.error('Error occurred:', {
+  const errorDetails = {
     message: err.message,
     stack: err.stack,
     url: c.req.url,
     method: c.req.method,
     headers: Object.fromEntries(c.req.raw.headers.entries()),
     timestamp: new Date().toISOString(),
-  })
+    name: err.name,
+    cause: err.cause,
+  }
+
+  console.error('=== 详细错误信息 ===')
+  console.error('错误消息:', err.message)
+  console.error('错误类型:', err.name)
+  console.error('请求URL:', c.req.url)
+  console.error('请求方法:', c.req.method)
+  console.error('完整错误栈:', err.stack)
+  console.error('错误详情:', errorDetails)
+  console.error('===================')
 
   // HTTP 异常处理
   if (err instanceof HTTPException) {
@@ -73,12 +84,19 @@ export function errorHandler(err: Error, c: Context<{ Bindings: Env }>) {
     }, 400)
   }
 
-  // 默认服务器错误
+  // 默认服务器错误 - 始终返回详细错误信息用于调试
   return c.json({
     success: false,
     error: 'Internal server error',
-    message: c.env.ENVIRONMENT === 'development' ? err.message : 'Something went wrong',
-    ...(c.env.ENVIRONMENT === 'development' && { stack: err.stack }),
+    message: err.message,
+    details: {
+      name: err.name,
+      stack: err.stack,
+      cause: err.cause,
+      url: c.req.url,
+      method: c.req.method,
+      timestamp: new Date().toISOString(),
+    },
   }, 500)
 }
 

@@ -5,8 +5,9 @@ import type { Env } from '../index'
  */
 export async function initializeDatabase(env: Env): Promise<void> {
   try {
+    console.log('开始创建用户表...')
     // 创建用户表
-    await env.DB.prepare(`
+    const userTableResult = await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -26,9 +27,11 @@ export async function initializeDatabase(env: Env): Promise<void> {
         deleted_at DATETIME
       )
     `).run()
+    console.log('用户表创建结果:', userTableResult)
 
+    console.log('开始创建用户会话表...')
     // 创建用户会话表
-    await env.DB.prepare(`
+    const sessionTableResult = await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS user_sessions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -42,6 +45,7 @@ export async function initializeDatabase(env: Env): Promise<void> {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `).run()
+    console.log('用户会话表创建结果:', sessionTableResult)
 
     // 创建索引
     await env.DB.prepare(`
@@ -60,9 +64,14 @@ export async function initializeDatabase(env: Env): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(is_active, expires_at)
     `).run()
 
-    console.log('Database initialized successfully')
+    console.log('数据库初始化成功完成')
   } catch (error) {
-    console.error('Failed to initialize database:', error)
+    console.error('=== 数据库初始化失败 ===')
+    console.error('错误类型:', (error as any)?.constructor?.name)
+    console.error('错误消息:', (error as any)?.message)
+    console.error('错误栈:', (error as any)?.stack)
+    console.error('完整错误对象:', error)
+    console.error('========================')
     throw error
   }
 }

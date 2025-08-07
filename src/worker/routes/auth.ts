@@ -52,31 +52,52 @@ authRoutes.use('*', authRateLimiter)
  */
 authRoutes.post('/register', async (c) => {
   try {
+    console.log('=== 开始注册流程 ===')
+
     // 确保数据库已初始化
+    console.log('检查数据库初始化状态...')
     const isInitialized = await isDatabaseInitialized(c.env)
+    console.log('数据库初始化状态:', isInitialized)
+
     if (!isInitialized) {
+      console.log('开始初始化数据库...')
       await initializeDatabase(c.env)
+      console.log('数据库初始化完成')
     }
 
+    console.log('解析请求数据...')
     const body = await c.req.json()
+    console.log('请求体:', body)
+
     const validatedData = registerSchema.parse(body)
+    console.log('数据验证通过:', validatedData)
 
     // 检查邮箱是否已存在
+    console.log('检查邮箱是否已存在:', validatedData.email)
     const existingUser = await c.env.DB.prepare(`
       SELECT id FROM users WHERE email = ? AND deleted_at IS NULL
     `).bind(validatedData.email).first()
+    console.log('查询结果:', existingUser)
 
     if (existingUser) {
+      console.log('邮箱已存在，返回错误')
       throw new BusinessError('该邮箱已被注册', 'EMAIL_ALREADY_EXISTS', 409)
     }
 
     // 生成用户 ID 和密码哈希
+    console.log('生成用户数据...')
     const userId = generateId()
+    console.log('用户ID:', userId)
+
     const passwordHash = await hashPassword(validatedData.password)
+    console.log('密码哈希生成完成')
+
     const emailVerificationToken = generateId()
+    console.log('邮箱验证令牌:', emailVerificationToken)
 
     // 创建用户
-    await c.env.DB.prepare(`
+    console.log('插入用户数据到数据库...')
+    const insertResult = await c.env.DB.prepare(`
       INSERT INTO users (id, email, name, password_hash, email_verification_token)
       VALUES (?, ?, ?, ?, ?)
     `).bind(
@@ -86,13 +107,19 @@ authRoutes.post('/register', async (c) => {
       passwordHash,
       emailVerificationToken
     ).run()
+    console.log('用户插入结果:', insertResult)
 
     // 生成 JWT tokens
+    console.log('生成JWT令牌...')
     const { accessToken, refreshToken } = await generateTokens(c.env.JWT_SECRET, userId)
+    console.log('JWT令牌生成完成')
 
     // 保存刷新令牌到数据库
+    console.log('保存刷新令牌到数据库...')
     await saveRefreshToken(c.env.DB, userId, refreshToken, c.req.header('CF-Connecting-IP'), c.req.header('User-Agent'))
+    console.log('刷新令牌保存完成')
 
+    console.log('注册流程完成，返回响应')
     return c.json({
       success: true,
       message: '注册成功',
@@ -111,7 +138,15 @@ authRoutes.post('/register', async (c) => {
       },
     })
   } catch (error) {
+    console.error('=== 注册流程错误 ===')
+    console.error('错误类型:', (error as any)?.constructor?.name)
+    console.error('错误消息:', (error as any)?.message)
+    console.error('错误栈:', (error as any)?.stack)
+    console.error('完整错误对象:', error)
+    console.error('==================')
+
     if (error instanceof z.ZodError) {
+      console.log('Zod验证错误:', error.errors)
       throw new ValidationError('输入数据验证失败', formatZodErrors(error))
     }
     throw error
