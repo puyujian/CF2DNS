@@ -170,12 +170,24 @@ export async function initializeDatabase(env: Env): Promise<void> {
  */
 export async function isDatabaseInitialized(env: Env): Promise<boolean> {
   try {
-    const result = await env.DB.prepare(`
-      SELECT name FROM sqlite_master WHERE type='table' AND name='users'
-    `).first()
-    return !!result
+    // 检查所有必需的表是否存在
+    const requiredTables = ['users', 'user_sessions', 'cloudflare_zones', 'dns_records']
+
+    for (const tableName of requiredTables) {
+      const result = await env.DB.prepare(`
+        SELECT name FROM sqlite_master WHERE type='table' AND name=?
+      `).bind(tableName).first()
+
+      if (!result) {
+        console.log(`表 ${tableName} 不存在，需要初始化数据库`)
+        return false
+      }
+    }
+
+    console.log('所有必需的表都存在')
+    return true
   } catch (error) {
-    console.error('Failed to check database status:', error)
+    console.error('检查数据库状态失败:', error)
     return false
   }
 }

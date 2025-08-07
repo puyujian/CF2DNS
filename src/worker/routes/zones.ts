@@ -184,6 +184,34 @@ zonesRoutes.post('/:id/sync', async (c) => {
 })
 
 /**
+ * 强制初始化数据库（临时功能）
+ */
+zonesRoutes.post('/init-database', async (c) => {
+  try {
+    console.log('=== 强制初始化数据库 ===')
+    const { initializeDatabase } = await import('../lib/database')
+
+    await initializeDatabase(c.env)
+
+    return c.json({
+      success: true,
+      message: '数据库初始化完成'
+    })
+  } catch (error) {
+    console.error('数据库初始化错误:', error)
+    return c.json({
+      success: false,
+      error: '数据库初始化失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name,
+        stack: (error as any)?.stack
+      }
+    }, 500)
+  }
+})
+
+/**
  * 创建测试域名数据（临时功能）
  */
 zonesRoutes.post('/create-test-data', async (c) => {
