@@ -86,6 +86,72 @@ apiRoutes.get('/test', async (c) => {
 })
 
 /**
+ * 显示原始 Token 信息（不调用 Cloudflare API）
+ */
+apiRoutes.get('/raw-token', async (c) => {
+  try {
+    console.log('=== 显示原始Token信息 ===')
+    const user = c.get('user')
+
+    // 确保数据库已初始化
+    const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
+    const isInitialized = await isDatabaseInitialized(c.env)
+
+    if (!isInitialized) {
+      await initializeDatabase(c.env)
+    }
+
+    // 获取用户的 Cloudflare 配置
+    const userConfig = await c.env.DB.prepare(`
+      SELECT cloudflare_api_token, cloudflare_email
+      FROM users
+      WHERE id = ? AND deleted_at IS NULL
+    `).bind(user.id).first()
+
+    if (!userConfig) {
+      return c.json({
+        success: false,
+        error: '用户配置不存在'
+      }, 404)
+    }
+
+    const token = userConfig.cloudflare_api_token as string || ''
+    const email = userConfig.cloudflare_email as string || ''
+
+    return c.json({
+      success: true,
+      data: {
+        hasToken: !!token,
+        tokenLength: token.length,
+        tokenFirst10: token.substring(0, 10),
+        tokenLast10: token.substring(Math.max(0, token.length - 10)),
+        hasEmail: !!email,
+        emailDomain: email ? email.split('@')[1] : null,
+        tokenCharacterAnalysis: {
+          hasUppercase: /[A-Z]/.test(token),
+          hasLowercase: /[a-z]/.test(token),
+          hasNumbers: /[0-9]/.test(token),
+          hasUnderscore: /_/.test(token),
+          hasDash: /-/.test(token),
+          hasSpecialChars: /[^a-zA-Z0-9_-]/.test(token),
+          onlyValidChars: /^[a-zA-Z0-9_-]+$/.test(token)
+        }
+      }
+    })
+  } catch (error) {
+    console.error('显示Token信息错误:', error)
+    return c.json({
+      success: false,
+      error: '获取Token信息失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name
+      }
+    }, 500)
+  }
+})
+
+/**
  * 检查用户的 Cloudflare Token 格式
  */
 apiRoutes.get('/check-token', async (c) => {
@@ -243,11 +309,22 @@ apiRoutes.get('/verify-token', async (c) => {
       }, 400)
     }
 
-    console.log('用户API令牌前缀:', (userConfig.cloudflare_api_token as string).substring(0, 10) + '...')
+    const apiToken = userConfig.cloudflare_api_token as string
+    console.log('用户API令牌前缀:', apiToken.substring(0, 10) + '...')
+    console.log('API令牌长度:', apiToken.length)
+    console.log('API令牌完整内容:', apiToken) // 临时调试，生产环境应删除
+
+    // 检查令牌格式
+    if (!apiToken || apiToken.length < 20) {
+      return c.json({
+        success: false,
+        error: 'API 令牌格式无效'
+      }, 400)
+    }
 
     // 创建 Cloudflare API 客户端并验证令牌
     const cfAPI = new CloudflareAPI(
-      userConfig.cloudflare_api_token as string,
+      apiToken,
       userConfig.cloudflare_email as string || undefined
     )
 

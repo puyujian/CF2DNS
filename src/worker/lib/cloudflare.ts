@@ -83,7 +83,12 @@ export class CloudflareAPI {
    * 验证 API 令牌
    */
   async verifyToken(): Promise<{ id: string; status: string }> {
+    console.log('=== 验证API令牌 ===')
+    console.log('请求端点: /user/tokens/verify')
+    console.log('API令牌前缀:', this.apiToken.substring(0, 10) + '...')
+
     const response = await this.request('/user/tokens/verify')
+    console.log('验证响应:', response)
     return response.result
   }
 
