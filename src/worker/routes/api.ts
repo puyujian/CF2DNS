@@ -137,7 +137,67 @@ apiRoutes.get('/status', async (c) => {
 })
 
 /**
- * 验证 Cloudflare API 令牌
+ * 验证当前用户的 Cloudflare API 令牌
+ */
+apiRoutes.get('/verify-token', async (c) => {
+  try {
+    console.log('=== 验证用户的Cloudflare API令牌 ===')
+    const user = c.get('user')
+    console.log('当前用户:', user)
+
+    // 确保数据库已初始化
+    const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
+    const isInitialized = await isDatabaseInitialized(c.env)
+
+    if (!isInitialized) {
+      await initializeDatabase(c.env)
+    }
+
+    // 获取用户的 Cloudflare 配置
+    const userConfig = await c.env.DB.prepare(`
+      SELECT cloudflare_api_token, cloudflare_email
+      FROM users
+      WHERE id = ? AND deleted_at IS NULL
+    `).bind(user.id).first()
+
+    if (!userConfig || !userConfig.cloudflare_api_token) {
+      return c.json({
+        success: false,
+        error: '请先配置 Cloudflare API 令牌'
+      }, 400)
+    }
+
+    console.log('用户API令牌前缀:', (userConfig.cloudflare_api_token as string).substring(0, 10) + '...')
+
+    // 创建 Cloudflare API 客户端并验证令牌
+    const cfAPI = new CloudflareAPI(
+      userConfig.cloudflare_api_token as string,
+      userConfig.cloudflare_email as string || undefined
+    )
+
+    const tokenInfo = await cfAPI.verifyToken()
+
+    return c.json({
+      success: true,
+      message: 'API 令牌验证成功',
+      data: tokenInfo
+    })
+  } catch (error) {
+    console.error('验证Cloudflare令牌错误:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'API 令牌验证失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name,
+        stack: (error as any)?.stack
+      }
+    }, 400)
+  }
+})
+
+/**
+ * 手动验证 Cloudflare API 令牌
  */
 apiRoutes.post('/verify-token', async (c) => {
   try {

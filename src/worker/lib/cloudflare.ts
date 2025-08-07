@@ -22,7 +22,7 @@ export class CloudflareAPI {
     options: RequestInit = {}
   ): Promise<CloudflareAPIResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${this.apiToken}`,
@@ -39,11 +39,23 @@ export class CloudflareAPI {
       },
     }
 
+    console.log('=== Cloudflare API 请求调试 ===')
+    console.log('URL:', url)
+    console.log('方法:', config.method || 'GET')
+    console.log('请求头:', config.headers)
+    console.log('API Token 前缀:', this.apiToken.substring(0, 10) + '...')
+    console.log('==============================')
+
     try {
       const response = await fetch(url, config)
+      console.log('Cloudflare API 响应状态:', response.status)
+      console.log('Cloudflare API 响应头:', Object.fromEntries(response.headers.entries()))
+
       const data = await response.json() as CloudflareAPIResponse<T>
+      console.log('Cloudflare API 响应数据:', data)
 
       if (!data.success) {
+        console.error('Cloudflare API 错误详情:', data.errors)
         throw new CloudflareAPIError(
           data.errors?.[0]?.message || 'Cloudflare API error',
           data.errors?.[0]?.code || response.status,
@@ -57,8 +69,8 @@ export class CloudflareAPI {
       if (error instanceof CloudflareAPIError) {
         throw error
       }
-      
-      console.error('Cloudflare API request failed:', error)
+
+      console.error('Cloudflare API 请求失败:', error)
       throw new CloudflareAPIError(
         'Failed to communicate with Cloudflare API',
         0,
