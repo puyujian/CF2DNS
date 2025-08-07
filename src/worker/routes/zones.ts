@@ -4,8 +4,7 @@ import { authMiddleware } from '../middleware/auth'
 
 export const zonesRoutes = new Hono<{ Bindings: Env }>()
 
-// 应用认证中间件
-zonesRoutes.use('*', authMiddleware)
+// 认证中间件已在主应用中应用，这里不需要重复应用
 
 /**
  * 获取域名列表（从本地缓存）

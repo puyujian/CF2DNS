@@ -60,17 +60,32 @@ app.get('/health', (c) => {
   })
 })
 
+// 调试端点 - 检查请求头
+app.get('/debug/headers', (c) => {
+  const headers = Object.fromEntries(c.req.raw.headers.entries())
+  return c.json({
+    success: true,
+    headers,
+    url: c.req.url,
+    method: c.req.method,
+    timestamp: new Date().toISOString()
+  })
+})
+
 // 不需要认证的API路由
 app.route('/api/auth', authRoutes)
 app.route('/api/auth-test', authTestRoutes)
 
-// 需要认证的API路由
+// 需要认证的API路由 - 先应用认证中间件
+app.use('/api/zones/*', authMiddleware)
+app.use('/api/dns/*', authMiddleware)
+app.use('/api/cloudflare/*', authMiddleware)
+app.use('/api/user/*', authMiddleware)
+
+// 然后注册路由
 app.route('/api/zones', zonesRoutes)
 app.route('/api/dns', dnsRoutes)
 app.route('/api/cloudflare', apiRoutes)
-
-// 用户相关路由 (需要认证)
-app.use('/api/user/*', authMiddleware)
 app.route('/api/user', userRoutes)
 
 // 静态文件服务 (使用 ASSETS 绑定)

@@ -31,8 +31,7 @@ const updateDNSRecordSchema = z.object({
 
 export const apiRoutes = new Hono<{ Bindings: Env }>()
 
-// 应用认证和速率限制
-apiRoutes.use('*', authMiddleware)
+// 认证中间件已在主应用中应用，这里不需要重复应用
 // 临时禁用速率限制以排查问题
 // apiRoutes.use('*', cloudflareRateLimiter)
 
