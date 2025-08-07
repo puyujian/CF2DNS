@@ -103,6 +103,16 @@ userRoutes.put('/profile', async (c) => {
 
     const { name, avatar, cloudflareApiToken, cloudflareEmail } = body
 
+    // 处理 undefined 值，转换为 null（D1 数据库要求）
+    const safeValues = {
+      name: name || null,
+      avatar: avatar || null,
+      cloudflareApiToken: cloudflareApiToken || null,
+      cloudflareEmail: cloudflareEmail || null
+    }
+
+    console.log('处理后的安全值:', safeValues)
+
     // 确保数据库已初始化
     console.log('检查数据库初始化状态...')
     const { initializeDatabase, isDatabaseInitialized } = await import('../lib/database')
@@ -121,7 +131,13 @@ userRoutes.put('/profile', async (c) => {
       UPDATE users
       SET name = ?, avatar = ?, cloudflare_api_token = ?, cloudflare_email = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).bind(name, avatar, cloudflareApiToken, cloudflareEmail, user.id).run()
+    `).bind(
+      safeValues.name,
+      safeValues.avatar,
+      safeValues.cloudflareApiToken,
+      safeValues.cloudflareEmail,
+      user.id
+    ).run()
 
     console.log('数据库更新结果:', updateResult)
 
