@@ -5,20 +5,8 @@ import { Input } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { authAPI } from '@/lib/auth/authAPI'
+import { UserProfile } from '@/types'
 import { User, Shield, Eye, EyeOff, ExternalLink } from 'lucide-react'
-
-interface UserProfile {
-  id: string
-  email: string
-  name: string
-  avatar?: string
-  emailVerified: boolean
-  hasCloudflareToken: boolean
-  cloudflareEmail?: string
-  lastLoginAt?: string
-  createdAt: string
-  updatedAt: string
-}
 
 export function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -44,10 +32,15 @@ export function ProfilePage() {
     try {
       setLoading(true)
       const response = await authAPI.getProfile()
-      setProfile(response)
+      // 确保emailVerified是boolean类型
+      const userProfile: UserProfile = {
+        ...response,
+        emailVerified: response.emailVerified || false
+      }
+      setProfile(userProfile)
       setFormData({
         name: response.name,
-        cloudflareApiToken: '',
+        cloudflareApiToken: '', // 出于安全考虑，不显示现有令牌
         cloudflareEmail: response.cloudflareEmail || '',
         cloudflareAccountId: (response as any).cloudflareAccountId || ''
       })
@@ -84,12 +77,19 @@ export function ProfilePage() {
       setError('')
       setSuccess('')
 
-      await authAPI.updateProfile({
+      // 构建更新数据，只有在用户输入了新令牌时才包含令牌字段
+      const updateData: any = {
         name: formData.name,
-        cloudflareApiToken: formData.cloudflareApiToken || undefined,
         cloudflareEmail: formData.cloudflareEmail || undefined,
         cloudflareAccountId: formData.cloudflareAccountId || undefined
-      })
+      }
+
+      // 只有在用户输入了新令牌时才更新令牌
+      if (formData.cloudflareApiToken && formData.cloudflareApiToken.trim()) {
+        updateData.cloudflareApiToken = formData.cloudflareApiToken.trim()
+      }
+
+      await authAPI.updateProfile(updateData)
 
       setSuccess('个人资料更新成功')
       await loadProfile() // 重新加载资料

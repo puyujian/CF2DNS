@@ -57,6 +57,49 @@ async function getCloudflareClient(db: D1Database, userId: string): Promise<Clou
 }
 
 /**
+ * 手动数据库迁移端点
+ */
+apiRoutes.post('/migrate-db', async (c) => {
+  try {
+    console.log('=== 手动数据库迁移开始 ===')
+
+    // 检查是否需要添加 cloudflare_account_id 字段
+    try {
+      await c.env.DB.prepare(`
+        SELECT cloudflare_account_id FROM users LIMIT 1
+      `).first()
+      console.log('cloudflare_account_id 字段已存在')
+      return c.json({
+        success: true,
+        message: 'cloudflare_account_id 字段已存在，无需迁移'
+      })
+    } catch (error) {
+      console.log('cloudflare_account_id 字段不存在，开始添加...')
+
+      await c.env.DB.prepare(`
+        ALTER TABLE users ADD COLUMN cloudflare_account_id TEXT
+      `).run()
+
+      console.log('cloudflare_account_id 字段添加成功')
+      return c.json({
+        success: true,
+        message: 'cloudflare_account_id 字段添加成功'
+      })
+    }
+  } catch (error) {
+    console.error('数据库迁移失败:', error)
+    return c.json({
+      success: false,
+      error: '数据库迁移失败',
+      details: {
+        message: (error as any)?.message,
+        name: (error as any)?.name
+      }
+    }, 500)
+  }
+})
+
+/**
  * 简单测试端点
  */
 apiRoutes.get('/test', async (c) => {
@@ -481,6 +524,19 @@ apiRoutes.get('/zones', async (c) => {
 
     // 缓存域名信息到数据库
     for (const zone of zones) {
+      // 首先确保账户记录存在
+      await c.env.DB.prepare(`
+        INSERT OR IGNORE INTO cloudflare_accounts
+        (id, account_id, user_id, account_name, created_at, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `).bind(
+        `${user.id}-${zone.account.id}`,
+        zone.account.id,
+        user.id,
+        zone.account.name || 'Unknown Account'
+      ).run()
+
+      // 然后插入域名记录
       await c.env.DB.prepare(`
         INSERT OR REPLACE INTO cloudflare_zones
         (id, user_id, account_id, zone_id, zone_name, status, paused, type, development_mode,
@@ -492,20 +548,20 @@ apiRoutes.get('/zones', async (c) => {
         user.id,
         zone.account.id,
         zone.id,
-        zone.name,
-        zone.status,
-        zone.paused,
-        zone.type,
-        zone.development_mode,
-        JSON.stringify(zone.name_servers),
-        JSON.stringify(zone.original_name_servers),
-        zone.original_registrar,
-        zone.original_dnshost,
-        zone.plan.id,
-        zone.plan.name,
-        JSON.stringify(zone.permissions),
-        JSON.stringify(zone.meta),
-        zone.activated_on
+        zone.name || '',
+        zone.status || '',
+        zone.paused || false,
+        zone.type || 'full',
+        zone.development_mode || 0,
+        JSON.stringify(zone.name_servers || []),
+        JSON.stringify(zone.original_name_servers || []),
+        zone.original_registrar || null,
+        zone.original_dnshost || null,
+        zone.plan?.id || null,
+        zone.plan?.name || null,
+        JSON.stringify(zone.permissions || []),
+        JSON.stringify(zone.meta || {}),
+        zone.activated_on || null
       ).run()
     }
 
@@ -642,29 +698,56 @@ apiRoutes.get('/zones/:zoneId/dns-records', async (c) => {
 
     // 缓存 DNS 记录到数据库
     for (const record of records) {
-      await c.env.DB.prepare(`
-        INSERT OR REPLACE INTO dns_records
-        (id, user_id, zone_id, record_id, zone_name, name, type, content, proxiable, proxied,
-         ttl, locked, comment, tags, meta_data, priority, last_synced_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `).bind(
-        `${user.id}-${record.id}`,
-        user.id,
-        record.zone_id,
-        record.id,
-        record.zone_name,
-        record.name,
-        record.type,
-        record.content,
-        record.proxiable,
-        record.proxied,
-        record.ttl,
-        record.locked,
-        record.comment,
-        JSON.stringify(record.tags || []),
-        JSON.stringify(record.meta),
-        null // priority 字段在某些记录类型中使用
-      ).run()
+      try {
+        console.log('处理DNS记录:', record.id, record.name, record.type)
+
+        // 安全处理所有字段
+        const safeRecord = {
+          id: `${user.id}-${record.id}`,
+          user_id: user.id,
+          zone_id: record.zone_id || zoneId,
+          record_id: record.id || '',
+          zone_name: record.zone_name || '',
+          name: record.name || '',
+          type: record.type || '',
+          content: record.content || '',
+          proxiable: record.proxiable === true ? 1 : 0,
+          proxied: record.proxied === true ? 1 : 0,
+          ttl: record.ttl || 1,
+          locked: record.locked === true ? 1 : 0,
+          comment: record.comment || null,
+          tags: JSON.stringify(record.tags || []),
+          meta_data: JSON.stringify(record.meta || {}),
+          priority: record.priority || null
+        }
+
+        await c.env.DB.prepare(`
+          INSERT OR REPLACE INTO dns_records
+          (id, user_id, zone_id, record_id, zone_name, name, type, content, proxiable, proxied,
+           ttl, locked, comment, tags, meta_data, priority, last_synced_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).bind(
+          safeRecord.id,
+          safeRecord.user_id,
+          safeRecord.zone_id,
+          safeRecord.record_id,
+          safeRecord.zone_name,
+          safeRecord.name,
+          safeRecord.type,
+          safeRecord.content,
+          safeRecord.proxiable,
+          safeRecord.proxied,
+          safeRecord.ttl,
+          safeRecord.locked,
+          safeRecord.comment,
+          safeRecord.tags,
+          safeRecord.meta_data,
+          safeRecord.priority
+        ).run()
+      } catch (recordError) {
+        console.error('插入DNS记录失败:', record.id, recordError)
+        // 继续处理其他记录，不中断整个流程
+      }
     }
 
     return c.json({

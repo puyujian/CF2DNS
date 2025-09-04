@@ -1,6 +1,6 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from '@/components/ui/Toaster'
+import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/auth/AuthContext'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Layout } from '@/components/layout/Layout'
@@ -15,6 +15,7 @@ import { DNSRecordsPage } from '@/pages/dns/DNSRecordsPage'
 import { APIExplorerPage } from '@/pages/api/APIExplorerPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
+import { TestPage } from '@/pages/test/TestPage'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
                     <Route path="/api-explorer" element={<APIExplorerPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/test" element={<TestPage />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </Layout>

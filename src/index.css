@@ -62,10 +62,26 @@
   }
 }
 
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-white text-gray-900;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 @layer components {
-  /* Button 组件样式 */
+  /* 按钮样式 */
   .btn {
-    @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 cursor-pointer;
   }
 
   .btn-sm {
@@ -94,112 +110,6 @@
 
   .btn-danger {
     @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
-  }
-
-  /* Input 组件样式 */
-  .input {
-    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-
-  /* Card 组件样式 */
-  .card {
-    @apply rounded-lg border border-gray-200 bg-white text-gray-950 shadow-sm;
-  }
-
-  .card-header {
-    @apply flex flex-col space-y-1.5 p-6;
-  }
-
-  .card-title {
-    @apply text-2xl font-semibold leading-none tracking-tight;
-  }
-
-  .card-description {
-    @apply text-sm text-gray-500;
-  }
-
-  .card-content {
-    @apply p-6 pt-0;
-  }
-
-  .card-footer {
-    @apply flex items-center p-6 pt-0;
-  }
-
-  /* Table 组件样式 */
-  .table {
-    @apply w-full caption-bottom text-sm;
-  }
-
-  .table-header {
-    @apply border-b;
-  }
-
-  .table-row {
-    @apply border-b transition-colors hover:bg-gray-50 data-[state=selected]:bg-gray-100;
-  }
-
-  .table-head {
-    @apply h-12 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0;
-  }
-
-  .table-cell {
-    @apply p-4 align-middle [&:has([role=checkbox])]:pr-0;
-  }
-
-  /* Loading Spinner 样式 */
-  .loading-spinner {
-    @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-gray-200;
-  }
-
-  body {
-    @apply bg-white text-gray-900;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-  
-  html {
-    scroll-behavior: smooth;
-  }
-}
-
-@layer components {
-  /* 自定义按钮样式 */
-  .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
-  }
-  
-  .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
-  }
-  
-  .btn-secondary {
-    @apply bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300;
-  }
-  
-  .btn-outline {
-    @apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100;
-  }
-  
-  .btn-danger {
-    @apply bg-error-600 text-white hover:bg-error-700 active:bg-error-800;
-  }
-  
-  .btn-sm {
-    @apply h-8 px-3 text-xs;
-  }
-  
-  .btn-md {
-    @apply h-10 px-4 py-2;
-  }
-  
-  .btn-lg {
-    @apply h-12 px-6 text-base;
   }
   
   /* 输入框样式 */

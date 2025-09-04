@@ -104,16 +104,31 @@ userRoutes.put('/profile', async (c) => {
 
     const { name, avatar, cloudflareApiToken, cloudflareEmail, cloudflareAccountId } = body
 
-    // 处理 undefined 值，转换为 null（D1 数据库要求）
-    const safeValues = {
-      name: name || null,
-      avatar: avatar || null,
-      cloudflareApiToken: cloudflareApiToken || null,
-      cloudflareEmail: cloudflareEmail || null,
-      cloudflareAccountId: cloudflareAccountId || null
+    // 构建更新字段列表
+    const updateFields = ['name = ?', 'avatar = ?']
+    const updateValues = [name || null, avatar || null]
+
+    // 只有在提供了新令牌时才更新令牌相关字段
+    if (cloudflareApiToken !== undefined) {
+      updateFields.push('cloudflare_api_token = ?')
+      updateValues.push(cloudflareApiToken || null)
     }
 
-    console.log('处理后的安全值:', safeValues)
+    if (cloudflareEmail !== undefined) {
+      updateFields.push('cloudflare_email = ?')
+      updateValues.push(cloudflareEmail || null)
+    }
+
+    if (cloudflareAccountId !== undefined) {
+      updateFields.push('cloudflare_account_id = ?')
+      updateValues.push(cloudflareAccountId || null)
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP')
+    updateValues.push(user.id)
+
+    console.log('更新字段:', updateFields)
+    console.log('更新值:', updateValues)
 
     // 确保数据库已初始化
     console.log('检查数据库初始化状态...')
@@ -129,18 +144,10 @@ userRoutes.put('/profile', async (c) => {
 
     // 更新用户信息
     console.log('执行数据库更新...')
-    const updateResult = await c.env.DB.prepare(`
-      UPDATE users
-      SET name = ?, avatar = ?, cloudflare_api_token = ?, cloudflare_email = ?, cloudflare_account_id = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      safeValues.name,
-      safeValues.avatar,
-      safeValues.cloudflareApiToken,
-      safeValues.cloudflareEmail,
-      safeValues.cloudflareAccountId,
-      user.id
-    ).run()
+    const updateSQL = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`
+    console.log('更新SQL:', updateSQL)
+
+    const updateResult = await c.env.DB.prepare(updateSQL).bind(...updateValues).run()
 
     console.log('数据库更新结果:', updateResult)
 
@@ -154,6 +161,13 @@ userRoutes.put('/profile', async (c) => {
     `).bind(user.id).first()
 
     console.log('更新后的用户信息:', updatedUser)
+
+    if (!updatedUser) {
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve updated user profile'
+      }, 500)
+    }
 
     return c.json({
       success: true,

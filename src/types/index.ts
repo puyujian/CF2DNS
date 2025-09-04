@@ -12,6 +12,20 @@ export interface User {
   updatedAt: string
 }
 
+// 用户资料类型
+export interface UserProfile {
+  id: string
+  email: string
+  name: string
+  avatar?: string
+  emailVerified: boolean
+  hasCloudflareToken?: boolean
+  cloudflareEmail?: string
+  lastLoginAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // 用户资料更新数据
 export interface UpdateProfileData {
   name?: string
@@ -115,6 +129,7 @@ export interface DNSRecord {
   }
   comment?: string
   tags?: string[]
+  priority?: number // for MX records
   created_on: string
   modified_on: string
 }
@@ -150,7 +165,7 @@ export interface CreateDNSRecordData {
 }
 
 export interface UpdateDNSRecordData extends Partial<CreateDNSRecordData> {
-  id: string
+  // id字段不应该在更新数据中，它通过URL参数传递
 }
 
 // API 响应类型

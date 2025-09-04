@@ -21,7 +21,15 @@ class AuthAPI {
   private baseURL: string
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+    // 如果环境变量已经包含完整URL，直接使用；否则使用默认的 /api
+    const envBaseURL = import.meta.env.VITE_API_BASE_URL
+    if (envBaseURL && envBaseURL.includes('://')) {
+      // 完整URL，移除末尾的 /api（如果存在）
+      this.baseURL = envBaseURL.replace(/\/api$/, '')
+    } else {
+      // 相对路径或未设置，使用默认值
+      this.baseURL = '/api'
+    }
   }
 
   private async request<T = any>(

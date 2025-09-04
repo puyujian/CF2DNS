@@ -7,6 +7,8 @@ import { Alert } from '@/components/ui/Alert'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useDNSRecords } from '@/lib/hooks/useCloudflare'
 import { useLocalDNSRecords } from '@/lib/hooks/useLocalData'
+import { DNSRecordModal } from '@/components/dns/DNSRecordModal'
+import { DeleteRecordModal } from '@/components/dns/DeleteRecordModal'
 import {
   Network,
   Search,
@@ -23,6 +25,7 @@ import {
   Upload
 } from 'lucide-react'
 import { formatDate, formatRelativeTime } from '@/lib/utils'
+import { toast } from 'sonner'
 import { DNS_RECORD_TYPES, DNS_RECORD_DESCRIPTIONS, TTL_OPTIONS, PROXY_STATUS } from '@/lib/constants'
 
 export function DNSRecordsPage() {
@@ -32,6 +35,15 @@ export function DNSRecordsPage() {
   const [proxiedFilter, setProxiedFilter] = useState<string>('')
   const [currentPage, setCurrentPage] = useState(1)
   const [useLocalData, setUseLocalData] = useState(true)
+
+  // 模态框状态
+  const [isRecordModalOpen, setIsRecordModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'copy'>('create')
+  const [selectedRecord, setSelectedRecord] = useState<any>(null)
+  const [zoneName, setZoneName] = useState('')
+
+  // 测试函数已移除，问题已修复
 
   // 查询参数
   const queryParams = {
@@ -58,7 +70,10 @@ export function DNSRecordsPage() {
     isLoading: cloudflareLoading,
     error: cloudflareError,
     refetch: refetchCloudflare
-  } = useDNSRecords(domainId || '', useLocalData ? undefined : queryParams)
+  } = useDNSRecords(domainId || '', useLocalData ? undefined : {
+    ...queryParams,
+    proxied: proxiedFilter ? proxiedFilter === 'true' : undefined
+  })
 
   // 选择数据源
   const data = useLocalData ? localData : cloudflareData
@@ -74,6 +89,71 @@ export function DNSRecordsPage() {
       refetchCloudflare()
     }
   }
+
+  // 模态框操作函数
+  const handleAddRecord = () => {
+    setModalMode('create')
+    setSelectedRecord(null)
+    setIsRecordModalOpen(true)
+  }
+
+  const handleEditRecord = (record: any) => {
+    setModalMode('edit')
+    setSelectedRecord(record)
+    setIsRecordModalOpen(true)
+  }
+
+  const handleCopyRecord = (record: any) => {
+    setModalMode('copy')
+    setSelectedRecord(record)
+    setIsRecordModalOpen(true)
+  }
+
+  const handleExport = () => {
+    // TODO: 实现导出逻辑；当前给出轻量反馈，便于确认点击事件
+    toast.info('正在导出：当前仅演示反馈，后续可接入真实导出逻辑')
+  }
+
+  const handleImport = () => {
+    // TODO: 实现导入逻辑；当前给出轻量反馈，便于确认点击事件
+    toast.info('正在导入：当前仅演示反馈，后续可接入真实导入逻辑')
+  }
+
+  const handleDeleteRecord = (record: any) => {
+    setSelectedRecord(record)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleCopyContent = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      toast.success('内容已复制到剪贴板')
+    } catch (error) {
+      toast.error('复制失败')
+    }
+  }
+
+  const closeModals = () => {
+    setIsRecordModalOpen(false)
+    setIsDeleteModalOpen(false)
+    setSelectedRecord(null)
+  }
+
+  // 获取域名名称
+  React.useEffect(() => {
+    if (data?.records && data.records.length > 0) {
+      const firstRecord = data.records[0]
+      if (firstRecord.zone_name) {
+        setZoneName(firstRecord.zone_name)
+      } else if (firstRecord.name) {
+        // 从记录名称中提取域名
+        const parts = firstRecord.name.split('.')
+        if (parts.length >= 2) {
+          setZoneName(parts.slice(-2).join('.'))
+        }
+      }
+    }
+  }, [data])
 
   const getTypeColor = (type: string) => {
     const typeColors = {
@@ -98,6 +178,8 @@ export function DNSRecordsPage() {
 
   return (
     <div className="space-y-6">
+      {/* 测试按钮已移除 - 问题已修复 */}
+
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
@@ -120,15 +202,15 @@ export function DNSRecordsPage() {
           >
             {useLocalData ? '切换到实时数据' : '切换到本地缓存'}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             导出
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleImport}>
             <Upload className="h-4 w-4 mr-2" />
             导入
           </Button>
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" onClick={handleAddRecord}>
             <Plus className="h-4 w-4 mr-2" />
             添加记录
           </Button>
@@ -228,7 +310,7 @@ export function DNSRecordsPage() {
                 }
               </p>
               {!searchQuery && !typeFilter && !proxiedFilter && (
-                <Button variant="primary">
+                <Button variant="primary" onClick={handleAddRecord}>
                   <Plus className="h-4 w-4 mr-2" />
                   添加第一条记录
                 </Button>
@@ -307,28 +389,54 @@ export function DNSRecordsPage() {
                         </span>
                       </td>
                       <td className="table-cell">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigator.clipboard.writeText(record.content)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCopyContent(record.content)
+                            }}
                             title="复制内容"
+                            className="h-8 w-8 p-0"
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCopyRecord(record)
+                            }}
+                            title="复制记录"
+                            className="h-8 w-8 p-0"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditRecord(record)
+                            }}
                             title="编辑记录"
+                            className="h-8 w-8 p-0"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteRecord(record)
+                            }}
                             title="删除记录"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -371,6 +479,24 @@ export function DNSRecordsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* DNS记录模态框 */}
+      <DNSRecordModal
+        isOpen={isRecordModalOpen}
+        onClose={closeModals}
+        zoneId={domainId || ''}
+        zoneName={zoneName}
+        record={selectedRecord}
+        mode={modalMode}
+      />
+
+      {/* 删除确认模态框 */}
+      <DeleteRecordModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeModals}
+        zoneId={domainId || ''}
+        record={selectedRecord}
+      />
     </div>
   )
 }

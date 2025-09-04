@@ -48,6 +48,25 @@ export async function initializeDatabase(env: Env): Promise<void> {
     `).run()
     console.log('用户会话表创建结果:', sessionTableResult)
 
+    console.log('开始创建Cloudflare账户表...')
+    // 创建Cloudflare账户表
+    const accountsTableResult = await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS cloudflare_accounts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        account_name TEXT NOT NULL,
+        account_email TEXT,
+        account_type TEXT,
+        settings TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, account_id)
+      )
+    `).run()
+    console.log('Cloudflare账户表创建结果:', accountsTableResult)
+
     console.log('开始创建Cloudflare域名表...')
     // 创建Cloudflare域名表
     const zonesTableResult = await env.DB.prepare(`
@@ -109,11 +128,29 @@ export async function initializeDatabase(env: Env): Promise<void> {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (zone_id) REFERENCES cloudflare_zones(zone_id) ON DELETE CASCADE,
         UNIQUE(user_id, record_id)
       )
     `).run()
     console.log('DNS记录表创建结果:', dnsRecordsTableResult)
+
+    // 创建操作历史表
+    console.log('开始创建操作历史表...')
+    const operationHistoryTableResult = await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS operation_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        operation_type TEXT NOT NULL,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT NOT NULL,
+        resource_name TEXT NOT NULL,
+        old_data TEXT,
+        new_data TEXT,
+        status TEXT NOT NULL DEFAULT 'success',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run()
+    console.log('操作历史表创建结果:', operationHistoryTableResult)
 
     // 创建索引
     console.log('开始创建索引...')
@@ -151,6 +188,18 @@ export async function initializeDatabase(env: Env): Promise<void> {
 
     await env.DB.prepare(`
       CREATE INDEX IF NOT EXISTS idx_dns_records_name_type ON dns_records(name, type)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_operation_history_user_id ON operation_history(user_id)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_operation_history_resource ON operation_history(resource_type, resource_id)
+    `).run()
+
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_operation_history_created_at ON operation_history(created_at)
     `).run()
 
     console.log('索引创建完成')
@@ -204,7 +253,7 @@ async function runMigrations(env: Env): Promise<void> {
 export async function isDatabaseInitialized(env: Env): Promise<boolean> {
   try {
     // 检查所有必需的表是否存在
-    const requiredTables = ['users', 'user_sessions', 'cloudflare_zones', 'dns_records']
+    const requiredTables = ['users', 'user_sessions', 'cloudflare_accounts', 'cloudflare_zones', 'dns_records']
 
     for (const tableName of requiredTables) {
       const result = await env.DB.prepare(`
