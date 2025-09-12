@@ -1,9 +1,13 @@
-name: Build Docker Image
+name: Build and Push Container
 
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build:
@@ -19,37 +23,52 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Compute meta (tags and push flag)
+      - name: Compute tags (GHCR + optional Docker Hub)
         id: meta
         shell: bash
         run: |
           set -euo pipefail
-          PUSH=false
-          if [[ -n "${DOCKERHUB_USERNAME}" && -n "${DOCKERHUB_TOKEN}" ]]; then
-            PUSH=true
+          REPO_LC="${GITHUB_REPOSITORY,,}"
+          GHCR_IMAGE="ghcr.io/${REPO_LC}"
+          GHCR_TAGS="${GHCR_IMAGE}:latest,${GHCR_IMAGE}:sha-${GITHUB_SHA::7}"
+
+          # Optional Docker Hub tags
+          DOCKER_TAGS=""
+          if [[ -n "${DOCKERHUB_USERNAME}" ]]; then
+            if [[ -n "${IMAGE_NAME}" ]]; then
+              DOCKER_TAGS+="${IMAGE_NAME}"
+            else
+              DOCKER_TAGS+="${DOCKERHUB_USERNAME}/cf2dns:latest,${DOCKERHUB_USERNAME}/cf2dns:sha-${GITHUB_SHA::7}"
+            fi
           fi
 
-          if [[ -n "${IMAGE_NAME}" ]]; then
-            TAGS="$IMAGE_NAME"
-          elif [[ -n "${DOCKERHUB_USERNAME}" ]]; then
-            TAGS="${DOCKERHUB_USERNAME}/cf2dns:latest"
+          # Combine tags (comma-separated)
+          if [[ -n "${DOCKER_TAGS}" ]]; then
+            ALL_TAGS="${GHCR_TAGS},${DOCKER_TAGS}"
           else
-            TAGS="cf2dns:latest"
+            ALL_TAGS="${GHCR_TAGS}"
           fi
 
-          echo "push=$PUSH" >> "$GITHUB_OUTPUT"
-          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "ghcr_image=${GHCR_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "tags=${ALL_TAGS}" >> "$GITHUB_OUTPUT"
 
-      - name: Login to Docker Hub
-        if: ${{ steps.meta.outputs.push == 'true' }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub (optional)
+        if: ${{ env.DOCKERHUB_USERNAME && env.DOCKERHUB_TOKEN }}
         uses: docker/login-action@v3
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Build (and optionally push)
+      - name: Build and push (GHCR + optional Docker Hub)
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ steps.meta.outputs.push == 'true' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}

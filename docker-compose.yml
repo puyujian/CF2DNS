@@ -1,13 +1,15 @@
 version: "3.8"
 services:
   cf2dns:
-    build: .
-    image: cf2dns:latest
+    # 默认使用 GHCR 镜像；可通过环境变量 IMAGE_NAME 覆盖
+    image: ${IMAGE_NAME:-ghcr.io/puyujian/cf2dns:latest}
+    # 如需本地构建，先执行：docker build -t cf2dns:local .
+    # 然后使用：IMAGE_NAME=cf2dns:local docker compose up -d
     ports:
       - "3000:3000"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
       - PORT=3000
-    # Uncomment to set explicit CORS (not needed when UI served from same container)
-    #  - CORS_ORIGIN=http://localhost:5173
-
+    # 当同源提供前端 + API 时无需 CORS；开发联调才需要
+    # - CORS_ORIGIN=http://localhost:5173
+    restart: unless-stopped
