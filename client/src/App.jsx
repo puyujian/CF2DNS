@@ -305,22 +305,28 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div className="card">
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
-            <select value={selectedZoneId} onChange={handleSelectZone} className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-              <option value="">选择域名</option>
-              {zones.map(z => (
-                <option key={z.id} value={z.id}>{z.name}</option>
-              ))}
-            </select>
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索记录（name/type/content）" className="border rounded-lg px-3 py-2 flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"/>
-            <button className="btn btn-outline" onClick={fetchZones}>刷新域名</button>
-            {selectedZoneId && (
-              <>
-                <button className="btn btn-primary" onClick={() => fetchRecords(selectedZoneId)}>刷新记录</button>
-                <button className="btn btn-outline" onClick={() => setEditing({})}>添加记录</button>
-                <button className="btn btn-outline" disabled={!selectedIds.length} onClick={() => setBatchOpen(true)}>批量修改</button>
-              </>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+            <div className="flex gap-3">
+              <select value={selectedZoneId} onChange={handleSelectZone} className="select w-full">
+                <option value="">选择域名</option>
+                {zones.map(z => (
+                  <option key={z.id} value={z.id}>{z.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索记录（name/type/content）" className="input w-full"/>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="btn btn-outline" onClick={fetchZones}>刷新域名</button>
+              {selectedZoneId && (
+                <>
+                  <button className="btn btn-primary" onClick={() => fetchRecords(selectedZoneId)}>刷新记录</button>
+                  <button className="btn btn-outline" onClick={() => setEditing({})}>添加记录</button>
+                  <button className="btn btn-outline" disabled={!selectedIds.length} onClick={() => setBatchOpen(true)}>批量修改</button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -330,35 +336,97 @@ export default function App() {
           </div>
         )}
 
-        <div className="grid gap-3">
+        {/* 桌面端表格 */}
+        <div className="hidden md:block card p-0 overflow-x-auto">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th className="w-10"><input type="checkbox" aria-label="全选"
+                  onChange={e => {
+                    const checked = e.target.checked
+                    setSelectedIds(checked ? visibleRecords.map(r => r.id) : [])
+                  }}
+                  checked={visibleRecords.length>0 && selectedIds.length===visibleRecords.length}
+                /></th>
+                <th>名称</th>
+                <th>类型</th>
+                <th>内容</th>
+                <th>代理</th>
+                <th className="w-40 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRecords.map(r => (
+                <tr key={r.id}>
+                  <td><input type="checkbox" checked={selectedIds.includes(r.id)} onChange={e => toggleSelect(r.id, e.target.checked)} /></td>
+                  <td className="font-medium">{displayName(r)}</td>
+                  <td><span className="chip">{r.type}</span></td>
+                  <td className="break-all text-sm text-gray-700 dark:text-gray-300">{r.content}</td>
+                  <td>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
+                      {r.proxied ? 'Proxied' : 'Direct'}
+                    </span>
+                  </td>
+                  <td className="text-right">
+                    <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}>编辑</button>
+                    <button className="btn btn-danger ml-2 px-2 py-1" onClick={() => handleDelete(r)}>删除</button>
+                  </td>
+                </tr>
+              ))}
+              {isLoading && !visibleRecords.length && (
+                <tr><td colSpan="6" className="px-4 py-6 text-center text-gray-500">加载中...</td></tr>
+              )}
+              {!isLoading && !visibleRecords.length && (
+                <tr><td colSpan="6" className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 移动端卡片 */}
+        <div className="md:hidden grid gap-3">
           {visibleRecords.map(r => (
-            <div key={r.id} className="card flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 dark:border-gray-600"
-                  checked={selectedIds.includes(r.id)}
-                  onChange={e => toggleSelect(r.id, e.target.checked)}
-                />
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-semibold">{r.type || '?'}</span>
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{displayName(r)}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300 break-all" title={r.content}>{r.content}</div>
+            <div key={r.id} className="card p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600" checked={selectedIds.includes(r.id)} onChange={e => toggleSelect(r.id, e.target.checked)} />
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-semibold">{r.type || '?'}</span>
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{displayName(r)}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300 break-all" title={r.content}>{r.content}</div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
                   {r.proxied ? 'Proxied' : 'Direct'}
                 </span>
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
                 <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}>编辑</button>
                 <button className="btn btn-danger px-2 py-1" onClick={() => handleDelete(r)}>删除</button>
               </div>
             </div>
           ))}
-          {!visibleRecords.length && (
+          {isLoading && !visibleRecords.length && (
+            <div className="card p-4">
+              <div className="h-4 w-1/3 skeleton mb-3"></div>
+              <div className="h-3 w-2/3 skeleton"></div>
+            </div>
+          )}
+          {!isLoading && !visibleRecords.length && (
             <div className="text-center text-gray-500 py-10 card">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</div>
           )}
         </div>
+
+        {/* 移动端粘性批量操作条 */}
+        {selectedIds.length > 0 && (
+          <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 card flex items-center justify-between px-4 py-3">
+            <div className="text-sm">已选 {selectedIds.length} 条</div>
+            <div className="flex gap-2">
+              <button className="btn btn-outline" onClick={() => setSelectedIds([])}>清空</button>
+              <button className="btn btn-primary" onClick={() => setBatchOpen(true)}>批量修改</button>
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <div className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-3 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-2 shadow-soft">
