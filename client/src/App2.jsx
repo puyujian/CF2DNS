@@ -2,18 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import RecordFormModal from './components/RecordForm.jsx'
 
-// 计算 API 基地址：开发用 3000，生产同源，可用 VITE_API_BASE 覆盖
+// 计算 API 基地址与超时
 const loc = typeof window !== 'undefined' ? window.location : undefined
 const defaultBase = (loc && loc.port === '5173')
   ? 'http://localhost:3000'
   : (loc?.origin || 'http://localhost:3000')
 const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_MS || 45000)
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || defaultBase,
-  timeout: API_TIMEOUT,
-})
+const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || defaultBase, timeout: API_TIMEOUT })
 
-// 请求拦截：自动附加登录令�?api.interceptors.request.use((config) => {
+// 请求拦截：自动附加登录令牌
+api.interceptors.request.use((config) => {
   try {
     const token = localStorage.getItem('cf2dns:auth')
     if (token) config.headers['x-auth-token'] = token
@@ -21,43 +19,19 @@ const api = axios.create({
   return config
 })
 
-// 客户端缓�?TTL（毫秒）
-const RECORDS_CACHE_TTL = Number(import.meta.env.VITE_CACHE_TTL_MS || 60000)
-
 function Icon({ name, className = '' }) {
   const common = 'w-4 h-4 ' + className
   switch (name) {
-    case 'plus':
-      return (
-        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-      )
-    case 'edit':
-      return (
-        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-      )
-    case 'trash':
-      return (
-        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-      )
-    case 'moon':
-      return (
-        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      )
-    case 'sun':
-      return (
-        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-      )
-    case 'cloud':
-      return (
-        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17.58A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 4 16.25"/></svg>
-      )
-    default:
-      return null
+    case 'sun': return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    case 'moon': return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    case 'cloud': return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17.58A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 4 16.25"/></svg>
+    default: return null
   }
 }
 
 export default function App() {
-  // 主题与提�?  const [dark, setDark] = useState(false)
+  // 主题/提示
+  const [dark, setDark] = useState(false)
   const [toasts, setToasts] = useState([]) // { id, type, message }
 
   // 数据
@@ -65,19 +39,22 @@ export default function App() {
   const [selectedZoneId, setSelectedZoneId] = useState('')
   const [records, setRecords] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
-  const [editing, setEditing] = useState(null) // 记录对象�?null
+  const [editing, setEditing] = useState(null)
   const [batchOpen, setBatchOpen] = useState(false)
   const [batchTTL, setBatchTTL] = useState('')
   const [batchProxied, setBatchProxied] = useState('keep') // keep|true|false
-  const [isLoading, setIsLoading] = useState(false)
+
+  // 状态
+  const [isLoading, setIsLoading] = useState(false) // 仅用于列表加载/初始化
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  // 排序与分�?  const [sortKey, setSortKey] = useState('name') // name|type|content|proxied
-  const [sortDir, setSortDir] = useState('asc')  // asc|desc
+  const [sortKey, setSortKey] = useState('name') // name|type|content|proxied
+  const [sortDir, setSortDir] = useState('asc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
-  
-  // 登录状�?  const [needLogin, setNeedLogin] = useState(false)
+
+  // 登录
+  const [needLogin, setNeedLogin] = useState(false)
   const [loginPwd, setLoginPwd] = useState('')
   const [loginError, setLoginError] = useState('')
   const [hasToken, setHasToken] = useState(() => {
@@ -86,38 +63,24 @@ export default function App() {
 
   const selectedZone = useMemo(() => zones.find(z => z.id === selectedZoneId), [zones, selectedZoneId])
 
+  useEffect(() => { document.documentElement.classList.toggle('dark', dark) }, [dark])
+
   function notify(type, message) {
     const id = Math.random().toString(36).slice(2)
     setToasts(prev => [...prev, { id, type, message }])
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000)
   }
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-  }, [dark])
-
   async function fetchZones() {
-    setIsLoading(true)
-    setError('')
+    setIsLoading(true); setError('')
     try {
       const { data } = await api.get('/api/zones')
-      if (data?.success) {
-        setZones(data.result || [])
-      } else {
-        throw new Error(data?.message || '加载域名失败')
-      }
+      if (data?.success) setZones(data.result || [])
+      else throw new Error(data?.message || '加载域名失败')
     } catch (e) {
-      if (e?.response?.status === 401) {
-        setNeedLogin(true)
-        setError('')
-      } else {
-        const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载域名失败'
-        setError(msg)
-        notify('error', msg)
-      }
-    } finally {
-      setIsLoading(false)
-    }
+      if (e?.response?.status === 401) { setNeedLogin(true); setError('') }
+      else { const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载域名失败'; setError(msg); notify('error', msg) }
+    } finally { setIsLoading(false) }
   }
 
   async function fetchRecords(zoneId, background = false) {
@@ -125,96 +88,47 @@ export default function App() {
     if (!background) { setIsLoading(true); setError('') }
     try {
       const { data } = await api.get(`/api/zones/${zoneId}/dns_records`)
-      if (data?.success) {
-        setRecords(data.result || [])
-      } else {
-        throw new Error(data?.message || '加载解析记录失败')
-      }
+      if (data?.success) setRecords(data.result || [])
+      else throw new Error(data?.message || '加载解析记录失败')
     } catch (e) {
-      if (e?.response?.status === 401) {
-        setNeedLogin(true)
-        setError('')
-      } else {
-        const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载解析记录失败'
-        setError(msg)
-        notify('error', msg)
-      }
-    } finally {
-      if (!background) setIsLoading(false)
-    }
+      if (e?.response?.status === 401) { setNeedLogin(true); setError('') }
+      else { const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载解析记录失败'; setError(msg); notify('error', msg) }
+    } finally { if (!background) setIsLoading(false) }
   }
 
-  useEffect(() => {
-    fetchZones()
-  }, [])
-
-  async function handleLogin(e) {
-    e?.preventDefault?.()
-    setLoginError('')
-    try {
-      const { data } = await api.post('/api/auth/login', { password: loginPwd })
-      if (!data?.success) throw new Error(data?.message || '登录失败')
-      if (data.token) {
-        try { localStorage.setItem('cf2dns:auth', data.token) } catch (_) {}
-      }
-      setHasToken(Boolean(data.token))
-      setNeedLogin(false)
-      setLoginPwd('')
-      notify('success', '登录成功')
-      await fetchZones()
-      if (selectedZoneId) await fetchRecords(selectedZoneId)
-    } catch (e) {
-      const msg = e?.response?.data?.message || e.message || '登录失败'
-      setLoginError(msg)
-      notify('error', msg)
-    }
-  }
+  useEffect(() => { fetchZones() }, [])
 
   function handleSelectZone(e) {
     const id = e.target.value
     setSelectedZoneId(id)
     setRecords([])
     setSelectedIds([])
+    setPage(1)
     if (id) fetchRecords(id)
   }
 
-  const pageRecords = useMemo(() => {
+  const visibleRecords = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return records
-    return records.filter(r =>
-      (r.name || '').toLowerCase().includes(q) ||
-      (r.type || '').toLowerCase().includes(q) ||
-      (r.content || '').toLowerCase().includes(q)
-    )
+    return records.filter(r => (r.name || '').toLowerCase().includes(q) || (r.type || '').toLowerCase().includes(q) || (r.content || '').toLowerCase().includes(q))
   }, [records, query])
 
   const sortedRecords = useMemo(() => {
-    const arr = [...pageRecords]
-    const get = (r) => {
-      switch (sortKey) {
-        case 'type': return r.type || ''
-        case 'content': return r.content || ''
-        case 'proxied': return r.proxied ? 1 : 0
-        default: return r.name || ''
-      }
-    }
+    const arr = [...visibleRecords]
+    const get = (r) => sortKey === 'type' ? (r.type || '') : sortKey === 'content' ? (r.content || '') : sortKey === 'proxied' ? (r.proxied ? 1 : 0) : (r.name || '')
     arr.sort((a, b) => {
-      const va = get(a)
-      const vb = get(b)
+      const va = get(a), vb = get(b)
       if (va < vb) return sortDir === 'asc' ? -1 : 1
       if (va > vb) return sortDir === 'asc' ? 1 : -1
       return 0
     })
     return arr
-  }, [pageRecords, sortKey, sortDir])
+  }, [visibleRecords, sortKey, sortDir])
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(sortedRecords.length / pageSize)), [sortedRecords.length, pageSize])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages])
-  useEffect(() => { setPage(1) }, [selectedZoneId, query])
-  const pageRecords = useMemo(() => {
-    const start = (page - 1) * pageSize
-    return sortedRecords.slice(start, start + pageSize)
-  }, [sortedRecords, page, pageSize])
+  useEffect(() => { setPage(1) }, [selectedZoneId, query, sortKey, sortDir, pageSize])
+  const pageRecords = useMemo(() => sortedRecords.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize), [sortedRecords, page, pageSize])
 
   function displayName(r) {
     if (!r?.name) return ''
@@ -222,11 +136,10 @@ export default function App() {
     if (!zoneName) return r.name
     if (r.name === zoneName) return '@'
     const suffix = '.' + zoneName
-    if (r.name.endsWith(suffix)) return r.name.slice(0, -suffix.length)
-    return r.name
+    return r.name.endsWith(suffix) ? r.name.slice(0, -suffix.length) : r.name
   }
 
-  // 单条新增/修改
+  // 新增/修改（无感刷新）
   async function handleUpsert(input) {
     if (!selectedZoneId) return
     try {
@@ -249,7 +162,6 @@ export default function App() {
     }
   }
 
-  // 删除
   async function handleDelete(record) {
     if (!selectedZoneId || !record?.id) return
     try {
@@ -265,61 +177,62 @@ export default function App() {
     }
   }
 
-  // 批量应用（TTL / Proxied�?  async function handleBatchApply(e) {
+  async function handleBatchApply(e) {
     e?.preventDefault?.()
     if (!selectedZoneId || !selectedIds.length) return setBatchOpen(false)
-    const ops = []
     const ttlVal = batchTTL.trim() === '' ? null : Number(batchTTL)
     const proxVal = batchProxied === 'keep' ? null : (batchProxied === 'true')
     setIsLoading(true)
     try {
       for (const id of selectedIds) {
-        const r = records.find(x => x.id === id)
-        if (!r) continue
-        const body = {
-          type: r.type,
-          name: r.name,
-          content: r.content,
-          ttl: ttlVal ?? (r.ttl ?? 1),
-          proxied: proxVal ?? r.proxied,
-        }
-        // 顺序执行，避免速率限制
+        const r = records.find(x => x.id === id); if (!r) continue
+        const body = { type: r.type, name: r.name, content: r.content, ttl: ttlVal ?? (r.ttl ?? 1), proxied: proxVal ?? r.proxied }
         // eslint-disable-next-line no-await-in-loop
         const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${id}`, body)
         if (!data?.success) throw new Error(data?.message || '批量修改失败')
       }
       notify('success', '批量修改成功')
-      setBatchOpen(false)
-      setBatchTTL('')
-      setBatchProxied('keep')
-      await fetchRecords(selectedZoneId)
+      setBatchOpen(false); setBatchTTL(''); setBatchProxied('keep')
+      fetchRecords(selectedZoneId, true)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量修改失败'
       notify('error', msg)
-    } finally {
-      setIsLoading(false)
-    }
+    } finally { setIsLoading(false) }
   }
 
-  // 批量删除
   async function handleBatchDelete() {
     if (!selectedZoneId || !selectedIds.length) return
-    const ok = window.confirm(`确定删除选中�?${selectedIds.length} 条记录吗？此操作不可撤销！`)
+    const ok = window.confirm(`确定删除选中的 ${selectedIds.length} 条记录吗？此操作不可撤销！`)
     if (!ok) return
     setIsLoading(true)
     try {
       for (const id of selectedIds) {
+        // eslint-disable-next-line no-await-in-loop
         const { data } = await api.delete(`/api/zones/${selectedZoneId}/dns_records/${id}`)
         if (!data?.success) throw new Error(data?.message || '删除失败')
       }
       notify('success', '批量删除成功')
       setSelectedIds([])
-      await fetchRecords(selectedZoneId)
+      fetchRecords(selectedZoneId, true)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量删除失败'
       notify('error', msg)
-    } finally {
-      setIsLoading(false)
+    } finally { setIsLoading(false) }
+  }
+
+  async function handleLogin(e) {
+    e?.preventDefault?.()
+    setLoginError('')
+    try {
+      const { data } = await api.post('/api/auth/login', { password: loginPwd })
+      if (!data?.success) throw new Error(data?.message || '登录失败')
+      if (data.token) { try { localStorage.setItem('cf2dns:auth', data.token) } catch (_) {} }
+      setHasToken(Boolean(data.token)); setNeedLogin(false); setLoginPwd('')
+      notify('success', '登录成功')
+      await fetchZones(); if (selectedZoneId) await fetchRecords(selectedZoneId)
+    } catch (e) {
+      const msg = e?.response?.data?.message || e.message || '登录失败'
+      setLoginError(msg); notify('error', msg)
     }
   }
 
@@ -343,28 +256,37 @@ export default function App() {
             <button className="btn btn-outline" onClick={() => setDark(v => !v)}>
               <Icon name={dark ? 'sun' : 'moon'} />
             </button>
-            <button className="btn btn-outline" onClick={() => setNeedLogin(true)}>
-              {hasToken ? '重新登录' : '登录'}
-            </button>
+            <button className="btn btn-outline" onClick={() => setNeedLogin(true)}>{hasToken ? '重新登录' : '登录'}</button>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* 工具栏 */}
         <div className="card">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
             <div className="flex gap-3">
               <select value={selectedZoneId} onChange={handleSelectZone} className="select w-full">
                 <option value="">选择域名</option>
-                {zones.map(z => (
-                  <option key={z.id} value={z.id}>{z.name}</option>
-                ))}
+                {zones.map(z => (<option key={z.id} value={z.id}>{z.name}</option>))}
               </select>
             </div>
             <div className="flex gap-3">
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索记录（name/type/content�? className="input w-full"/>
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索记录（name/type/content）" className="input w-full"/>
+              <select value={sortKey} onChange={e => setSortKey(e.target.value)} className="select">
+                <option value="name">名称</option>
+                <option value="type">类型</option>
+                <option value="content">内容</option>
+                <option value="proxied">代理</option>
+              </select>
+              <button className="btn btn-outline" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>{sortDir === 'asc' ? '升序' : '降序'}</button>
             </div>
             <div className="flex gap-3 justify-end">
+              <select value={pageSize} onChange={e => { setPage(1); setPageSize(Number(e.target.value)) }} className="select">
+                <option value={25}>每页 25</option>
+                <option value={50}>每页 50</option>
+                <option value={100}>每页 100</option>
+              </select>
               <button className="btn btn-outline" onClick={fetchZones}>刷新域名</button>
               {selectedZoneId && (
                 <>
@@ -379,22 +301,26 @@ export default function App() {
         </div>
 
         {!!error && (
-          <div className="card text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-200 border border-rose-200 dark:border-rose-800/50">
-            {error}
-          </div>
+          <div className="card text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-200 border border-rose-200 dark:border-rose-800/50">{error}</div>
         )}
 
-        {/* 桌面端表�?*/}
+        {/* 桌面端表格 */}
         <div className="hidden md:block card p-0 overflow-x-auto">
           <table className="table w-full">
             <thead>
               <tr>
-                <th className="w-10"><input type="checkbox" aria-label="全�?
+                <th className="w-10"><input type="checkbox" aria-label="全选"
                   onChange={e => {
                     const checked = e.target.checked
-                    setSelectedIds(checked ? pageRecords.map(r => r.id) : [])
+                    if (checked) {
+                      const ids = pageRecords.map(r => r.id)
+                      setSelectedIds(prev => Array.from(new Set([...prev, ...ids])))
+                    } else {
+                      const pageSet = new Set(pageRecords.map(r => r.id))
+                      setSelectedIds(prev => prev.filter(id => !pageSet.has(id)))
+                    }
                   }}
-                  checked={pageRecords.length>0 && selectedIds.length===pageRecords.length}
+                  checked={pageRecords.length > 0 && pageRecords.every(r => selectedIds.includes(r.id))}
                 /></th>
                 <th>名称</th>
                 <th>类型</th>
@@ -421,17 +347,13 @@ export default function App() {
                   </td>
                 </tr>
               ))}
-              {isLoading && !pageRecords.length && (
-                <tr><td colSpan="6" className="px-4 py-6 text-center text-gray-500">加载�?..</td></tr>
-              )}
-              {!isLoading && !pageRecords.length && (
-                <tr><td colSpan="6" className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记�?}</td></tr>
-              )}
+              {isLoading && !pageRecords.length && (<tr><td colSpan="6" className="px-4 py-6 text-center text-gray-500">加载中...</td></tr>)}
+              {!isLoading && !pageRecords.length && (<tr><td colSpan="6" className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td></tr>)}
             </tbody>
           </table>
         </div>
 
-        {/* 移动端卡�?*/}
+        {/* 移动端卡片 */}
         <div className="md:hidden grid gap-3">
           {pageRecords.map(r => (
             <div key={r.id} className="card p-3">
@@ -461,17 +383,27 @@ export default function App() {
             </div>
           )}
           {!isLoading && !pageRecords.length && (
-            <div className="text-center text-gray-500 py-10 card">{selectedZone ? '暂无记录' : '请选择域名后查看解析记�?}</div>
+            <div className="text-center text-gray-500 py-10 card">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</div>
           )}
+        </div>
+
+        {/* 分页条 */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm">共 {sortedRecords.length} 条，页 {page}/{totalPages}</div>
+          <div className="flex gap-2">
+            <button className="btn btn-outline" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>上一页</button>
+            <button className="btn btn-outline" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>下一页</button>
+          </div>
         </div>
 
         {/* 移动端粘性批量操作条 */}
         {selectedIds.length > 0 && (
           <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 card flex items-center justify-between px-4 py-3">
-            <div className="text-sm">已�?{selectedIds.length} �?/div>
+            <div className="text-sm">已选 {selectedIds.length} 条</div>
             <div className="flex gap-2">
               <button className="btn btn-outline" onClick={() => setSelectedIds([])}>清空</button>
               <button className="btn btn-primary" onClick={() => setBatchOpen(true)}>批量修改</button>
+              <button className="btn btn-danger" onClick={handleBatchDelete}>批量删除</button>
             </div>
           </div>
         )}
@@ -479,7 +411,7 @@ export default function App() {
         {isLoading && (
           <div className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-3 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-2 shadow-soft">
             <span className="inline-block w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
-            <span className="text-sm">加载�?..</span>
+            <span className="text-sm">加载中...</span>
           </div>
         )}
 
@@ -500,13 +432,13 @@ export default function App() {
               <form onSubmit={handleBatchApply} className="p-5 space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">TTL</label>
-                  <input value={batchTTL} onChange={e => setBatchTTL(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="留空保持不变�? 表示自动" />
+                  <input value={batchTTL} onChange={e => setBatchTTL(e.target.value)} className="input" placeholder="留空保持不变，1 表示自动" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Proxied</label>
-                  <select value={batchProxied} onChange={e => setBatchProxied(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                  <select value={batchProxied} onChange={e => setBatchProxied(e.target.value)} className="select">
                     <option value="keep">保持不变</option>
-                    <option value="true">开�?/option>
+                    <option value="true">开启</option>
                     <option value="false">关闭</option>
                   </select>
                 </div>
@@ -534,19 +466,12 @@ export default function App() {
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="card w-full max-w-sm animate-scale-in">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10">
-                <h3 className="text-lg font-semibold">管理员登�?/h3>
+                <h3 className="text-lg font-semibold">管理员登录</h3>
               </div>
               <form onSubmit={handleLogin} className="p-5 space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">密码</label>
-                  <input
-                    type="password"
-                    value={loginPwd}
-                    onChange={e => setLoginPwd(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
-                    placeholder="请输入后台设置的 ADMIN_PASSWORD"
-                    autoFocus
-                  />
+                  <input type="password" value={loginPwd} onChange={e => setLoginPwd(e.target.value)} className="input" placeholder="请输入后台设置的 ADMIN_PASSWORD" autoFocus />
                   {!!loginError && <p className="text-xs text-rose-600 mt-1">{loginError}</p>}
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
@@ -562,12 +487,3 @@ export default function App() {
   )
 }
 
-// 简单的卡片和按钮样式（Tailwind 组合类）
-// 放在这里仅为演示，生产建议抽出到 CSS 文件
-// eslint-disable-next-line no-unused-vars
-const styles = `
-.card { @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl p-4 shadow-soft; }
-.btn { @apply inline-flex items-center gap-2 rounded-lg px-3 py-2; }
-.btn-primary { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
-.btn-outline { @apply border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50; }
-`
