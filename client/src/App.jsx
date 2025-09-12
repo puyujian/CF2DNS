@@ -109,6 +109,16 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [dark, setDark] = useState(false)
+  // 过滤与排序
+  const [query, setQuery] = useState('')
+  const [sortKey, setSortKey] = useState('name') // name | type | content | proxied
+  const [sortDir, setSortDir] = useState('asc') // asc | desc
+  // 批量选择
+  const [selectedIds, setSelectedIds] = useState([])
+  // 批量编辑弹窗
+  const [batchEditOpen, setBatchEditOpen] = useState(false)
+  const [batchTTL, setBatchTTL] = useState('') // 为空表示不修改
+  const [batchProxied, setBatchProxied] = useState('keep') // keep | true | false
 
   const selectedZone = useMemo(() => zones.find(z => z.id === selectedZoneId), [zones, selectedZoneId])
 
@@ -214,6 +224,135 @@ export default function App() {
     }
   }
 
+  // 辅助：将完整 name 转换为相对当前域名的展示值
+  function displayName(r) {
+    if (!r?.name) return ''
+    const zoneName = selectedZone?.name
+    if (!zoneName) return r.name
+    if (r.name === zoneName) return '@'
+    const suffix = '.' + zoneName
+    if (r.name.endsWith(suffix)) return r.name.slice(0, -suffix.length)
+    return r.name
+  }
+
+  // 过滤 + 排序后的可见记录
+  const visibleRecords = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let list = dnsRecords.filter(r => {
+      if (!q) return true
+      const dn = displayName(r).toLowerCase()
+      const t = (r.type || '').toLowerCase()
+      const c = (r.content || '').toLowerCase()
+      const p = r.proxied ? 'proxied' : 'direct'
+      return dn.includes(q) || t.includes(q) || c.includes(q) || p.includes(q)
+    })
+    list.sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1
+      const va = sortKey === 'name' ? displayName(a) : (sortKey === 'type' ? a.type : (sortKey === 'content' ? a.content : (a.proxied ? 1 : 0)))
+      const vb = sortKey === 'name' ? displayName(b) : (sortKey === 'type' ? b.type : (sortKey === 'content' ? b.content : (b.proxied ? 1 : 0)))
+      if (va == null && vb == null) return 0
+      if (va == null) return -1 * dir
+      if (vb == null) return 1 * dir
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      return String(va).localeCompare(String(vb)) * dir
+    })
+    return list
+  }, [dnsRecords, query, sortKey, sortDir, selectedZone])
+
+  // 选择逻辑
+  const allVisibleSelected = useMemo(() => {
+    if (!visibleRecords.length) return false
+    const set = new Set(selectedIds)
+    return visibleRecords.every(r => set.has(r.id))
+  }, [visibleRecords, selectedIds])
+
+  function toggleSelect(id, checked) {
+    setSelectedIds(prev => {
+      const set = new Set(prev)
+      if (checked) set.add(id); else set.delete(id)
+      return Array.from(set)
+    })
+  }
+
+  function toggleSelectAll(checked) {
+    if (checked) {
+      setSelectedIds(visibleRecords.map(r => r.id))
+    } else {
+      // 仅取消当前可见的，保留其余选择（但此处更直观：全部清空）
+      setSelectedIds([])
+    }
+  }
+
+  useEffect(() => {
+    // 切换域名时清空选择与查询
+    setSelectedIds([])
+    setQuery('')
+  }, [selectedZoneId])
+
+  const selectedRecords = useMemo(() => {
+    const map = new Map(dnsRecords.map(r => [r.id, r]))
+    return selectedIds.map(id => map.get(id)).filter(Boolean)
+  }, [selectedIds, dnsRecords])
+
+  async function handleBatchDelete() {
+    if (!selectedZoneId || !selectedRecords.length) return
+    if (!window.confirm(`确认批量删除 ${selectedRecords.length} 条记录？`)) return
+    setIsLoading(true)
+    setError('')
+    try {
+      const tasks = selectedRecords.map(r => api.delete(`/api/zones/${selectedZoneId}/dns_records/${r.id}`))
+      const results = await Promise.allSettled(tasks)
+      const ok = results.filter(r => r.status === 'fulfilled').length
+      const fail = results.length - ok
+      if (fail) {
+        setError(`部分删除失败：成功 ${ok} 条，失败 ${fail} 条`)
+      }
+      setSelectedIds([])
+      await refreshRecords()
+    } catch (e) {
+      setError(e.message || '批量删除失败')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleBatchEditSubmit(e) {
+    e?.preventDefault?.()
+    if (!selectedZoneId || !selectedRecords.length) return
+    // 解析批量参数
+    const ttlRaw = String(batchTTL).trim()
+    const ttlParsed = ttlRaw ? Number(ttlRaw) : null
+    const proxiedVal = batchProxied === 'keep' ? null : (batchProxied === 'true')
+    setIsLoading(true)
+    setError('')
+    try {
+      const tasks = selectedRecords.map(r => {
+        const body = {
+          type: r.type,
+          name: r.name,
+          content: r.content,
+          ttl: ttlParsed !== null ? ttlParsed : (r.ttl ?? 1),
+          proxied: proxiedVal !== null ? proxiedVal : r.proxied,
+        }
+        return api.put(`/api/zones/${selectedZoneId}/dns_records/${r.id}`, body)
+      })
+      const results = await Promise.allSettled(tasks)
+      const ok = results.filter(r => r.status === 'fulfilled').length
+      const fail = results.length - ok
+      if (fail) {
+        setError(`部分修改失败：成功 ${ok} 条，失败 ${fail} 条`)
+      }
+      setBatchEditOpen(false)
+      setBatchTTL('')
+      setBatchProxied('keep')
+      await refreshRecords()
+    } catch (e) {
+      setError(e.message || '批量修改失败')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-lg">
@@ -264,6 +403,58 @@ export default function App() {
           </div>
         </div>
 
+        {/* 筛选 / 排序 / 批量操作 */}
+        <div className="card p-4 md:p-6 mb-6 animate-slide-up">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium mb-1">搜索</label>
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="按 Name/Type/Content/Proxied 搜索"
+                className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+              />
+            </div>
+            <div className="flex gap-2 md:col-span-2 md:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">排序字段</label>
+                <div className="flex gap-2">
+                  <select
+                    value={sortKey}
+                    onChange={e => setSortKey(e.target.value)}
+                    className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                  >
+                    <option value="name">Name</option>
+                    <option value="type">Type</option>
+                    <option value="content">Content</option>
+                    <option value="proxied">Proxied</option>
+                  </select>
+                  <select
+                    value={sortDir}
+                    onChange={e => setSortDir(e.target.value)}
+                    className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                  >
+                    <option value="asc">升序</option>
+                    <option value="desc">降序</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  className="btn btn-outline"
+                  disabled={!selectedZoneId || !selectedRecords.length}
+                  onClick={handleBatchDelete}
+                >批量删除</button>
+                <button
+                  className="btn btn-outline"
+                  disabled={!selectedZoneId || !selectedRecords.length}
+                  onClick={() => setBatchEditOpen(true)}
+                >批量修改</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {error && (
           <div className="mb-4 p-3 rounded-lg border bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-900/50">
             {String(error)}
@@ -275,6 +466,15 @@ export default function App() {
           <table className="table min-w-full text-sm">
             <thead className="bg-gray-50 dark:bg-white/5">
               <tr>
+                <th>
+                  <input
+                    aria-label="全选"
+                    type="checkbox"
+                    className="rounded border-gray-300 dark:border-gray-600"
+                    checked={allVisibleSelected}
+                    onChange={e => toggleSelectAll(e.target.checked)}
+                  />
+                </th>
                 <th>Type</th>
                 <th>Name</th>
                 <th>Content</th>
@@ -283,10 +483,19 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              {dnsRecords.map(r => (
+              {visibleRecords.map(r => (
                 <tr key={r.id}>
+                  <td>
+                    <input
+                      aria-label="选择记录"
+                      type="checkbox"
+                      className="rounded border-gray-300 dark:border-gray-600"
+                      checked={selectedIds.includes(r.id)}
+                      onChange={e => toggleSelect(r.id, e.target.checked)}
+                    />
+                  </td>
                   <td><span className="chip">{r.type}</span></td>
-                  <td className="font-medium">{r.name}</td>
+                  <td className="font-medium">{displayName(r)}</td>
                   <td className="text-gray-700 dark:text-gray-300">{r.content}</td>
                   <td>
                     <span className={`chip ${r.proxied ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : ''}`}>
@@ -305,7 +514,7 @@ export default function App() {
               ))}
               {!dnsRecords.length && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td>
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td>
                 </tr>
               )}
             </tbody>
@@ -314,7 +523,7 @@ export default function App() {
 
         {/* Mobile list */}
         <div className="md:hidden grid gap-3 animate-slide-up">
-          {dnsRecords.map(r => (
+          {visibleRecords.map(r => (
             <div key={r.id} className="card p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -322,11 +531,20 @@ export default function App() {
                   <span className="text-sm text-gray-500">{r.proxied ? 'Proxied' : 'Direct'}</span>
                 </div>
                 <div className="flex gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      aria-label="选择记录"
+                      type="checkbox"
+                      className="rounded border-gray-300 dark:border-gray-600"
+                      checked={selectedIds.includes(r.id)}
+                      onChange={e => toggleSelect(r.id, e.target.checked)}
+                    />
+                  </label>
                   <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}><Icon name="edit" /></button>
                   <button className="btn btn-danger px-2 py-1" onClick={() => handleDelete(r)}><Icon name="trash" /></button>
                 </div>
               </div>
-              <div className="font-medium">{r.name}</div>
+              <div className="font-medium">{displayName(r)}</div>
               <div className="text-sm text-gray-600 dark:text-gray-300 break-all">{r.content}</div>
             </div>
           ))}
@@ -350,6 +568,44 @@ export default function App() {
           />
         )}
 
+        {/* 批量修改弹窗 */}
+        {batchEditOpen && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="card w-full max-w-md animate-scale-in">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10">
+                <h3 className="text-lg font-semibold">批量修改（{selectedRecords.length} 条）</h3>
+              </div>
+              <form onSubmit={handleBatchEditSubmit} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">TTL</label>
+                  <input
+                    value={batchTTL}
+                    onChange={e => setBatchTTL(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                    placeholder="留空保持不变，1 表示自动"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Proxied</label>
+                  <select
+                    value={batchProxied}
+                    onChange={e => setBatchProxied(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                  >
+                    <option value="keep">保持不变</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setBatchEditOpen(false)} className="btn btn-outline">取消</button>
+                  <button type="submit" className="btn btn-primary">应用</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         <footer className="mt-10 text-xs text-gray-500">
           {selectedZone && <span>当前域名：{selectedZone.name}</span>}
         </footer>
@@ -357,4 +613,3 @@ export default function App() {
     </div>
   )
 }
-
