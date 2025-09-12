@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  cf2dns:
+    build: .
+    image: cf2dns:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - PORT=3000
+    # Uncomment to set explicit CORS (not needed when UI served from same container)
+    #  - CORS_ORIGIN=http://localhost:5173
+
