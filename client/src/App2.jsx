@@ -166,7 +166,7 @@ export default function App() {
         notify('success', '添加成功')
       }
       setEditing(null)
-      fetchRecords(selectedZoneId, true)
+      await fetchRecords(selectedZoneId)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '操作失败'
       notify('error', msg)
@@ -181,7 +181,7 @@ export default function App() {
       setRecords(prev => prev.filter(r => r.id !== record.id))
       setSelectedIds(prev => prev.filter(id => id !== record.id))
       notify('success', '删除成功')
-      fetchRecords(selectedZoneId, true)
+      await fetchRecords(selectedZoneId)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '删除失败'
       notify('error', msg)
@@ -204,7 +204,7 @@ export default function App() {
       }
       notify('success', '批量修改成功')
       setBatchOpen(false); setBatchTTL(''); setBatchProxied('keep')
-      fetchRecords(selectedZoneId, true)
+      await fetchRecords(selectedZoneId)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量修改失败'
       notify('error', msg)
@@ -224,7 +224,7 @@ export default function App() {
       }
       notify('success', '批量删除成功')
       setSelectedIds([])
-      fetchRecords(selectedZoneId, true)
+      await fetchRecords(selectedZoneId)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量删除失败'
       notify('error', msg)
@@ -497,5 +497,6 @@ export default function App() {
     </div>
   )
 }
+
 
 
