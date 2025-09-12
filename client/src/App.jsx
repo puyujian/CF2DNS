@@ -67,6 +67,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  
+  // 登录状态
+  const [needLogin, setNeedLogin] = useState(false)
+  const [loginPwd, setLoginPwd] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [hasToken, setHasToken] = useState(() => {
+    try { return Boolean(localStorage.getItem('cf2dns:auth')) } catch (_) { return false }
+  })
 
   const selectedZone = useMemo(() => zones.find(z => z.id === selectedZoneId), [zones, selectedZoneId])
 
@@ -91,8 +99,14 @@ export default function App() {
         throw new Error(data?.message || '加载域名失败')
       }
     } catch (e) {
-      setError(e?.response?.data?.message || e.message || '加载域名失败')
-      notify('error', '加载域名失败')
+      if (e?.response?.status === 401) {
+        setNeedLogin(true)
+        setError('')
+      } else {
+        const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载域名失败'
+        setError(msg)
+        notify('error', msg)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -110,8 +124,14 @@ export default function App() {
         throw new Error(data?.message || '加载解析记录失败')
       }
     } catch (e) {
-      setError(e?.response?.data?.message || e.message || '加载解析记录失败')
-      notify('error', '加载解析记录失败')
+      if (e?.response?.status === 401) {
+        setNeedLogin(true)
+        setError('')
+      } else {
+        const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载解析记录失败'
+        setError(msg)
+        notify('error', msg)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -120,6 +140,28 @@ export default function App() {
   useEffect(() => {
     fetchZones()
   }, [])
+
+  async function handleLogin(e) {
+    e?.preventDefault?.()
+    setLoginError('')
+    try {
+      const { data } = await api.post('/api/auth/login', { password: loginPwd })
+      if (!data?.success) throw new Error(data?.message || '登录失败')
+      if (data.token) {
+        try { localStorage.setItem('cf2dns:auth', data.token) } catch (_) {}
+      }
+      setHasToken(Boolean(data.token))
+      setNeedLogin(false)
+      setLoginPwd('')
+      notify('success', '登录成功')
+      await fetchZones()
+      if (selectedZoneId) await fetchRecords(selectedZoneId)
+    } catch (e) {
+      const msg = e?.response?.data?.message || e.message || '登录失败'
+      setLoginError(msg)
+      notify('error', msg)
+    }
+  }
 
   function handleSelectZone(e) {
     const id = e.target.value
@@ -160,6 +202,9 @@ export default function App() {
             <button className="btn btn-outline" onClick={() => setDark(v => !v)}>
               <Icon name={dark ? 'sun' : 'moon'} />
             </button>
+            <button className="btn btn-outline" onClick={() => setNeedLogin(true)}>
+              {hasToken ? '重新登录' : '登录'}
+            </button>
           </div>
         </div>
       </header>
@@ -195,7 +240,7 @@ export default function App() {
                   <div className="text-sm text-gray-600 dark:text-gray-300 break-all" title={r.content}>{r.content}</div>
                 </div>
               </div>
-              <div className="text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}">
+              <div className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
                 {r.proxied ? 'Proxied' : 'Direct'}
               </div>
             </div>
@@ -220,6 +265,34 @@ export default function App() {
                 {t.message}
               </div>
             ))}
+          </div>
+        )}
+
+        {needLogin && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="card w-full max-w-sm animate-scale-in">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10">
+                <h3 className="text-lg font-semibold">管理员登录</h3>
+              </div>
+              <form onSubmit={handleLogin} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">密码</label>
+                  <input
+                    type="password"
+                    value={loginPwd}
+                    onChange={e => setLoginPwd(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                    placeholder="请输入后台设置的 ADMIN_PASSWORD"
+                    autoFocus
+                  />
+                  {!!loginError && <p className="text-xs text-rose-600 mt-1">{loginError}</p>}
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" className="btn btn-outline" onClick={() => setNeedLogin(false)}>取消</button>
+                  <button type="submit" className="btn btn-primary">登录</button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </main>

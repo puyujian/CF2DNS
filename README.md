@@ -129,3 +129,17 @@ docker run --rm -p 3000:3000 \
 - æ— æ³•åˆ—å‡º Zoneï¼šç¡®è®¤è´¦å·ä¸‹å­˜åœ¨ Zoneï¼›æˆ– Token ä½œç”¨åŸŸæ˜¯å¦ä»…é™ç‰¹å®š Zoneã€‚
 - å¼€å‘è·¨åŸŸï¼šç¡®è®¤ `.env` ä¸­ `CORS_ORIGIN=http://localhost:5173` å¹¶é‡å¯åŽç«¯ã€‚
 - æŸ¥çœ‹å®¹å™¨æ—¥å¿—ï¼š`docker compose logs -f` æˆ– `docker logs -f cf2dns`ã€‚
+
+### µÇÂ¼Óë»·¾³±äÁ¿²¹³ä
+- ÐÂÔö¿ÉÑ¡ºóÌ¨µÇÂ¼±£»¤£ºÉèÖÃ»·¾³±äÁ¿ `ADMIN_PASSWORD` ºó£¬ËùÓÐ `/api/*` ÇëÇóÐèÒªÏÈÍ¨¹ý `/api/auth/login` µÇÂ¼¡£Ç°¶ËÓÒÉÏ½ÇÌá¹©¡°µÇÂ¼¡±Èë¿Ú£¬»òÔÚÊÕµ½ 401 Ê±×Ô¶¯µ¯´°¡£
+- ÔËÐÐÈÝÆ÷Ê¾Àý£¨´øµÇÂ¼£©£º
+```
+docker run --rm -p 3000:3000 \
+  -e CLOUDFLARE_API_TOKEN=ÄãµÄToken \
+  -e ADMIN_PASSWORD=ÄãµÄºóÌ¨ÃÜÂë \
+  ghcr.io/puyujian/cf2dns:latest
+```
+- ½Å±¾Ê¾Àý£º
+  - Bash: `CLOUDFLARE_API_TOKEN=ÄãµÄToken ADMIN_PASSWORD=ÄãµÄºóÌ¨ÃÜÂë ./docker-run.sh`
+  - PowerShell: `./docker-run.ps1 -Token ÄãµÄToken -AdminPassword ÄãµÄºóÌ¨ÃÜÂë`
+- Èô²»ÐèÒªµÇÂ¼±£»¤£¬¿É²»ÉèÖÃ `ADMIN_PASSWORD`¡£µ« `CLOUDFLARE_API_TOKEN` ÈÔÎª±ØÐè£¬·ñÔòÇ°¶Ë»áÏÔÊ¾¡°¼ÓÔØÓòÃûÊ§°Ü¡±¡£

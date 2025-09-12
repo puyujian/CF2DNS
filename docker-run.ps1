@@ -1,6 +1,7 @@
 param(
   [string]$ImageName = "cf2dns:latest",
-  [string]$Token
+  [string]$Token,
+  [string]$AdminPassword
 )
 
 if (-not $Token) {
@@ -12,7 +13,11 @@ if (-not $Token) {
   exit 1
 }
 
-docker run --name cf2dns --rm -p 3000:3000 `
-  -e CLOUDFLARE_API_TOKEN=$Token `
-  $ImageName
+$envArgs = @()
+$envArgs += @('-e', "CLOUDFLARE_API_TOKEN=$Token")
+if (-not $AdminPassword -and $env:ADMIN_PASSWORD) { $AdminPassword = $env:ADMIN_PASSWORD }
+if ($AdminPassword) { $envArgs += @('-e', "ADMIN_PASSWORD=$AdminPassword") }
 
+docker run --name cf2dns --rm -p 3000:3000 `
+  @envArgs `
+  $ImageName

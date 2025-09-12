@@ -9,6 +9,8 @@ services:
       - "3000:3000"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      # 可选：开启后台登录保护
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - PORT=3000
     # 当同源提供前端 + API 时无需 CORS；开发联调才需要
     # - CORS_ORIGIN=http://localhost:5173

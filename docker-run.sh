@@ -8,7 +8,9 @@ if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
 fi
 
 IMAGE_NAME=${1:-cf2dns:latest}
-docker run --name cf2dns --rm -p 3000:3000 \
-  -e CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
-  "$IMAGE_NAME"
+RUN_ENVS=( -e CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" )
+if [ -n "$ADMIN_PASSWORD" ]; then
+  RUN_ENVS+=( -e ADMIN_PASSWORD="$ADMIN_PASSWORD" )
+fi
 
+docker run --name cf2dns --rm -p 3000:3000 "${RUN_ENVS[@]}" "$IMAGE_NAME"
