@@ -149,6 +149,27 @@ export default function App() {
     return `${v}.${zoneName}`
   }
 
+  // 名称转换：绝对名 -> 相对名（用于编辑表单回显）
+  function toRelativeName(full) {
+    const zoneName = selectedZone?.name || ''
+    const v = String(full || '').trim()
+    if (!zoneName) return v
+    if (v === zoneName) return '@'
+    const suffix = '.' + zoneName
+    return v.endsWith(suffix) ? v.slice(0, -suffix.length) : v
+  function typeCircleClass(t) {
+    const x = String(t || '').toUpperCase()
+    switch (x) {
+      case 'A': return 'bg-blue-600'
+      case 'AAAA': return 'bg-emerald-600'
+      case 'CNAME': return 'bg-purple-600'
+      case 'TXT': return 'bg-amber-600'
+      case 'MX': return 'bg-rose-600'
+      case 'NS': return 'bg-sky-600'
+      default: return 'bg-gray-600'
+    }
+  }  }
+
   // 新增/修改（无感刷新）
   async function handleUpsert(input) {
     if (!selectedZoneId) return
@@ -345,7 +366,7 @@ export default function App() {
                 <tr key={r.id}>
                   <td><input type="checkbox" checked={selectedIds.includes(r.id)} onChange={e => toggleSelect(r.id, e.target.checked)} /></td>
                   <td className="font-medium">{displayName(r)}</td>
-                  <td><span className="chip">{r.type}</span></td>
+                  <td><span className={`chip ${typeBadgeClass(r.type)}`}>{r.type}</span></td>
                   <td className="break-all text-sm text-gray-700 dark:text-gray-300">{r.content}</td>
                   <td>
                     <span className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
@@ -353,7 +374,7 @@ export default function App() {
                     </span>
                   </td>
                   <td className="text-right">
-                    <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}>编辑</button>
+                    <button className="btn btn-outline px-2 py-1" onClick={() => setEditing({ ...r, name: toRelativeName(r.name) })}>编辑</button>
                     <button className="btn btn-danger ml-2 px-2 py-1" onClick={() => handleDelete(r)}>删除</button>
                   </td>
                 </tr>
@@ -371,7 +392,7 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600" checked={selectedIds.includes(r.id)} onChange={e => toggleSelect(r.id, e.target.checked)} />
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-semibold">{r.type || '?'}</span>
+                  <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-semibold ${typeCircleClass(r.type)}`}>{r.type || '?'}</span>
                   <div className="min-w-0">
                     <div className="font-medium truncate">{displayName(r)}</div>
                     <div className="text-xs text-gray-600 dark:text-gray-300 break-all" title={r.content}>{r.content}</div>
@@ -382,7 +403,7 @@ export default function App() {
                 </span>
               </div>
               <div className="mt-3 flex justify-end gap-2">
-                <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}>编辑</button>
+                <button className="btn btn-outline px-2 py-1" onClick={() => setEditing({ ...r, name: toRelativeName(r.name) })}>编辑</button>
                 <button className="btn btn-danger px-2 py-1" onClick={() => handleDelete(r)}>删除</button>
               </div>
             </div>
@@ -497,6 +518,12 @@ export default function App() {
     </div>
   )
 }
+
+
+
+
+
+
 
 
 
