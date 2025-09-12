@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import RecordFormModal from './components/RecordForm.jsx'
 
 // 计算 API 基地址：开发用 3000，生产同源，可用 VITE_API_BASE 覆盖
 const loc = typeof window !== 'undefined' ? window.location : undefined
 const defaultBase = (loc && loc.port === '5173')
   ? 'http://localhost:3000'
   : (loc?.origin || 'http://localhost:3000')
+const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_MS || 45000)
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || defaultBase,
-  timeout: 15000,
+  timeout: API_TIMEOUT,
 })
 
 // 请求拦截：自动附加登录令牌
@@ -64,6 +66,11 @@ export default function App() {
   const [zones, setZones] = useState([])
   const [selectedZoneId, setSelectedZoneId] = useState('')
   const [records, setRecords] = useState([])
+  const [selectedIds, setSelectedIds] = useState([])
+  const [editing, setEditing] = useState(null) // 记录对象或 null
+  const [batchOpen, setBatchOpen] = useState(false)
+  const [batchTTL, setBatchTTL] = useState('')
+  const [batchProxied, setBatchProxied] = useState('keep') // keep|true|false
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
@@ -167,6 +174,7 @@ export default function App() {
     const id = e.target.value
     setSelectedZoneId(id)
     setRecords([])
+    setSelectedIds([])
     if (id) fetchRecords(id)
   }
 
@@ -188,6 +196,92 @@ export default function App() {
     const suffix = '.' + zoneName
     if (r.name.endsWith(suffix)) return r.name.slice(0, -suffix.length)
     return r.name
+  }
+
+  // 单条新增/修改
+  async function handleUpsert(input) {
+    if (!selectedZoneId) return
+    try {
+      setIsLoading(true)
+      if (editing?.id) {
+        const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${editing.id}`, input)
+        if (!data?.success) throw new Error(data?.message || '修改失败')
+        notify('success', '修改成功')
+      } else {
+        const { data } = await api.post(`/api/zones/${selectedZoneId}/dns_records`, input)
+        if (!data?.success) throw new Error(data?.message || '新增失败')
+        notify('success', '添加成功')
+      }
+      setEditing(null)
+      await fetchRecords(selectedZoneId)
+    } catch (e) {
+      const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '操作失败'
+      notify('error', msg)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 删除
+  async function handleDelete(record) {
+    if (!selectedZoneId || !record?.id) return
+    try {
+      setIsLoading(true)
+      const { data } = await api.delete(`/api/zones/${selectedZoneId}/dns_records/${record.id}`)
+      if (!data?.success) throw new Error(data?.message || '删除失败')
+      notify('success', '删除成功')
+      await fetchRecords(selectedZoneId)
+    } catch (e) {
+      const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '删除失败'
+      notify('error', msg)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 批量应用（TTL / Proxied）
+  async function handleBatchApply(e) {
+    e?.preventDefault?.()
+    if (!selectedZoneId || !selectedIds.length) return setBatchOpen(false)
+    const ops = []
+    const ttlVal = batchTTL.trim() === '' ? null : Number(batchTTL)
+    const proxVal = batchProxied === 'keep' ? null : (batchProxied === 'true')
+    setIsLoading(true)
+    try {
+      for (const id of selectedIds) {
+        const r = records.find(x => x.id === id)
+        if (!r) continue
+        const body = {
+          type: r.type,
+          name: r.name,
+          content: r.content,
+          ttl: ttlVal ?? (r.ttl ?? 1),
+          proxied: proxVal ?? r.proxied,
+        }
+        // 顺序执行，避免速率限制
+        // eslint-disable-next-line no-await-in-loop
+        const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${id}`, body)
+        if (!data?.success) throw new Error(data?.message || '批量修改失败')
+      }
+      notify('success', '批量修改成功')
+      setBatchOpen(false)
+      setBatchTTL('')
+      setBatchProxied('keep')
+      await fetchRecords(selectedZoneId)
+    } catch (e) {
+      const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量修改失败'
+      notify('error', msg)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function toggleSelect(id, checked) {
+    setSelectedIds(prev => {
+      const set = new Set(prev)
+      if (checked) set.add(id); else set.delete(id)
+      return Array.from(set)
+    })
   }
 
   return (
@@ -220,7 +314,13 @@ export default function App() {
             </select>
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索记录（name/type/content）" className="border rounded-lg px-3 py-2 flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"/>
             <button className="btn btn-outline" onClick={fetchZones}>刷新域名</button>
-            {selectedZoneId && <button className="btn btn-primary" onClick={() => fetchRecords(selectedZoneId)}>刷新记录</button>}
+            {selectedZoneId && (
+              <>
+                <button className="btn btn-primary" onClick={() => fetchRecords(selectedZoneId)}>刷新记录</button>
+                <button className="btn btn-outline" onClick={() => setEditing({})}>添加记录</button>
+                <button className="btn btn-outline" disabled={!selectedIds.length} onClick={() => setBatchOpen(true)}>批量修改</button>
+              </>
+            )}
           </div>
         </div>
 
@@ -232,16 +332,26 @@ export default function App() {
 
         <div className="grid gap-3">
           {visibleRecords.map(r => (
-            <div key={r.id} className="card flex items-center justify-between">
-              <div className="flex items-center gap-4 min-w-0">
+            <div key={r.id} className="card flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 dark:border-gray-600"
+                  checked={selectedIds.includes(r.id)}
+                  onChange={e => toggleSelect(r.id, e.target.checked)}
+                />
                 <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-semibold">{r.type || '?'}</span>
                 <div className="min-w-0">
                   <div className="font-medium truncate">{displayName(r)}</div>
                   <div className="text-sm text-gray-600 dark:text-gray-300 break-all" title={r.content}>{r.content}</div>
                 </div>
               </div>
-              <div className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
-                {r.proxied ? 'Proxied' : 'Direct'}
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
+                  {r.proxied ? 'Proxied' : 'Direct'}
+                </span>
+                <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}>编辑</button>
+                <button className="btn btn-danger px-2 py-1" onClick={() => handleDelete(r)}>删除</button>
               </div>
             </div>
           ))}
@@ -254,6 +364,42 @@ export default function App() {
           <div className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-3 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-2 shadow-soft">
             <span className="inline-block w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
             <span className="text-sm">加载中...</span>
+          </div>
+        )}
+
+        {!!editing && (
+          <RecordFormModal
+            initial={editing?.id ? editing : null}
+            onCancel={() => setEditing(null)}
+            onSubmit={handleUpsert}
+          />
+        )}
+
+        {!!batchOpen && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="card w-full max-w-md animate-scale-in">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10">
+                <h3 className="text-lg font-semibold">批量修改（{selectedIds.length} 条）</h3>
+              </div>
+              <form onSubmit={handleBatchApply} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">TTL</label>
+                  <input value={batchTTL} onChange={e => setBatchTTL(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="留空保持不变，1 表示自动" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Proxied</label>
+                  <select value={batchProxied} onChange={e => setBatchProxied(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                    <option value="keep">保持不变</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" className="btn btn-outline" onClick={() => setBatchOpen(false)}>取消</button>
+                  <button type="submit" className="btn btn-primary">应用</button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

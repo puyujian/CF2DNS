@@ -39,7 +39,7 @@ const cf = axios.create({
     Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
     'Content-Type': 'application/json'
   },
-  timeout: 20000
+  timeout: Number(process.env.CF_API_TIMEOUT_MS || 45000)
 });
 
 // 简单内存缓存（TTL），用于加速 zones 与 dns_records 查询
