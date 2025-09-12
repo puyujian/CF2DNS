@@ -60,6 +60,147 @@ function RecordForm({ initial, onCancel, onSubmit }) {
     onSubmit({ type, name, content, ttl: Number(ttl), proxied })
   }
 
+  // Toast 通知封装
+  function notify(type, message) {
+    const id = Math.random().toString(36).slice(2)
+    setToasts(prev => [...prev, { id, type, message }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000)
+  }
+
+  // 名称转换：相对名 -> 绝对名
+  function toAbsoluteName(input) {
+    const zoneName = selectedZone?.name || ''
+    const v = String(input || '').trim()
+    if (!v || v === '@') return zoneName
+    if (!zoneName) return v
+    if (v.endsWith('.' + zoneName) || v === zoneName) return v
+    return `${v}.${zoneName}`
+  }
+
+  // 本地更新某条记录并写回缓存（丝滑）
+  function updateRecordLocal(recordId, patch) {
+    setDnsRecords(prev => {
+      const next = prev.map(r => (r.id === recordId ? { ...r, ...patch } : r))
+      writeRecordsCache(selectedZoneId, next)
+      return next
+    })
+  }
+
+  // 行内保存
+  async function saveInline(record, field, newValue) {
+    if (!selectedZoneId || !record?.id) return
+    const key = `${record.id}:${field}`
+    setInlineSavingKey(key)
+    const body = {
+      type: field === 'type' ? newValue : record.type,
+      name: field === 'name' ? toAbsoluteName(newValue) : record.name,
+      content: field === 'content' ? newValue : record.content,
+      ttl: record.ttl ?? 1,
+      proxied: field === 'proxied' ? Boolean(newValue) : record.proxied,
+    }
+    try {
+      const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${record.id}`, body)
+      if (!data?.success) throw new Error('保存失败')
+      updateRecordLocal(record.id, body)
+      notify('success', '已保存')
+      setInlineEdit(null)
+    } catch (e) {
+      const msg = e?.response?.data?.message || e.message || '保存失败'
+      notify('error', msg)
+    } finally {
+      setInlineSavingKey(null)
+    }
+  }
+
+  function isInteractiveTarget(target) {
+    const t = target.closest ? target.closest('button, input, select, a, label, textarea') : null
+    return Boolean(t)
+  }
+
+  function beginSelectDrag(startId, startChecked) {
+    setIsDragSelecting(true)
+    setDragAction(startChecked ? 'deselect' : 'select')
+    dragVisitedRef.current = new Set()
+    applySelectDrag(startId)
+  }
+
+  function applySelectDrag(id) {
+    const visited = dragVisitedRef.current
+    if (!isDragSelecting || visited.has(id)) return
+    visited.add(id)
+    setSelectedIds(prev => {
+      const set = new Set(prev)
+      if (dragAction === 'select') set.add(id); else set.delete(id)
+      return Array.from(set)
+    })
+  }
+
+  function endSelectDrag() {
+    setIsDragSelecting(false)
+    dragVisitedRef.current.clear()
+  }
+
+  // 全局监听：拖动经过哪一行
+  useEffect(() => {
+    function onPointerMove(e) {
+      if (!isDragSelecting) return
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      if (!el) return
+      const row = el.closest('[data-record-id]')
+      if (!row) return
+      const id = row.getAttribute('data-record-id')
+      if (id) applySelectDrag(id)
+    }
+    function onPointerUp() { if (isDragSelecting) endSelectDrag() }
+    if (isDragSelecting) {
+      window.addEventListener('pointermove', onPointerMove, { passive: true })
+      window.addEventListener('pointerup', onPointerUp, { passive: true })
+      window.addEventListener('pointercancel', onPointerUp, { passive: true })
+    }
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+    }
+  }, [isDragSelecting])
+
+  function handleRowPointerDown(e, record) {
+    if (isInteractiveTarget(e.target)) return
+    const start = () => beginSelectDrag(record.id, selectedIds.includes(record.id))
+    if (e.pointerType === 'touch') {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = setTimeout(start, 250)
+    } else if (e.button === 0) {
+      start()
+    }
+  }
+
+  function handlePointerUpGlobal() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+  useEffect(() => {
+    window.addEventListener('pointerup', handlePointerUpGlobal, { passive: true })
+    window.addEventListener('pointercancel', handlePointerUpGlobal, { passive: true })
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUpGlobal)
+      window.removeEventListener('pointercancel', handlePointerUpGlobal)
+    }
+  }, [])
+
+  async function toggleProxied(record) {
+    const next = !record.proxied
+    // 先本地立即切换，提升丝滑体感
+    updateRecordLocal(record.id, { proxied: next })
+    try {
+      await saveInline({ ...record, proxied: record.proxied }, 'proxied', next)
+    } catch (_) {
+      // saveInline 内部已处理通知
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
       <div className="card w-full max-w-xl animate-scale-in">
@@ -118,6 +259,16 @@ export default function App() {
   const [sortDir, setSortDir] = useState('asc') // asc | desc
   // 批量选择
   const [selectedIds, setSelectedIds] = useState([])
+  // 通知（Toast）
+  const [toasts, setToasts] = useState([]) // { id, type: 'success'|'error'|'info', message }
+  // 行内编辑状态
+  const [inlineEdit, setInlineEdit] = useState(null) // { id, field, draft }
+  const [inlineSavingKey, setInlineSavingKey] = useState(null) // `${id}:${field}`
+  // 拖拽多选状态
+  const [isDragSelecting, setIsDragSelecting] = useState(false)
+  const [dragAction, setDragAction] = useState('select') // 'select' | 'deselect'
+  const dragVisitedRef = useRef(new Set())
+  const longPressTimerRef = useRef(null)
   // 批量编辑弹窗
   const [batchEditOpen, setBatchEditOpen] = useState(false)
   const [batchTTL, setBatchTTL] = useState('') // 为空表示不修改
@@ -226,9 +377,12 @@ export default function App() {
     try {
       const { data } = await api.delete(`/api/zones/${selectedZoneId}/dns_records/${record.id}`)
       if (!data?.success) throw new Error('删除失败')
-      await refreshRecords()
+      notify('success', '删除成功')
+      await refreshRecords(true)
     } catch (e) {
-      setError(e.message || '删除失败')
+      const msg = e?.response?.data?.message || e.message || '删除失败'
+      setError(msg)
+      notify('error', msg)
     } finally {
       setIsLoading(false)
     }
@@ -242,14 +396,18 @@ export default function App() {
       if (editing && editing.id) {
         const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${editing.id}`, form)
         if (!data?.success) throw new Error('修改失败')
+        notify('success', '修改成功')
       } else {
         const { data } = await api.post(`/api/zones/${selectedZoneId}/dns_records`, form)
         if (!data?.success) throw new Error('添加失败')
+        notify('success', '添加成功')
       }
       setEditing(null)
-      await refreshRecords()
+      await refreshRecords(true)
     } catch (e) {
-      setError(e.message || '保存失败')
+      const msg = e?.response?.data?.message || e.message || '保存失败'
+      setError(msg)
+      notify('error', msg)
     } finally {
       setIsLoading(false)
     }
@@ -335,11 +493,12 @@ export default function App() {
       const results = await Promise.allSettled(tasks)
       const ok = results.filter(r => r.status === 'fulfilled').length
       const fail = results.length - ok
+      notify(fail ? 'error' : 'success', `批量修改完成：成功 ${ok}，失败 ${fail}`)
       if (fail) {
         setError(`部分删除失败：成功 ${ok} 条，失败 ${fail} 条`)
       }
       setSelectedIds([])
-      await refreshRecords()
+      await refreshRecords(true)
     } catch (e) {
       setError(e.message || '批量删除失败')
     } finally {
@@ -376,7 +535,7 @@ export default function App() {
       setBatchEditOpen(false)
       setBatchTTL('')
       setBatchProxied('keep')
-      await refreshRecords()
+      await refreshRecords(true)
     } catch (e) {
       setError(e.message || '批量修改失败')
     } finally {
@@ -493,7 +652,7 @@ export default function App() {
         )}
 
         {/* Desktop table */}
-        <div className="hidden md:block overflow-x-auto card animate-slide-up">
+        <div className="hidden md:block overflow-x-auto card animate-slide-up select-none">
           <table className="table min-w-full text-sm">
             <thead className="bg-gray-50 dark:bg-white/5">
               <tr>
@@ -515,7 +674,7 @@ export default function App() {
             </thead>
             <tbody>
               {visibleRecords.map(r => (
-                <tr key={r.id}>
+                <tr key={r.id} data-record-id={r.id} onPointerDown={e => handleRowPointerDown(e, r)} className="touch-none">
                   <td>
                     <input
                       aria-label="选择记录"
@@ -525,15 +684,67 @@ export default function App() {
                       onChange={e => toggleSelect(r.id, e.target.checked)}
                     />
                   </td>
-                  <td><span className="chip">{r.type}</span></td>
-                  <td className="font-medium">{displayName(r)}</td>
-                  <td className="text-gray-700 dark:text-gray-300">
-                    <div className="max-w-[420px] truncate" title={r.content}>{r.content}</div>
+                  <td onDoubleClick={() => setInlineEdit({ id: r.id, field: 'type', draft: r.type })} className="cursor-pointer">
+                    {inlineEdit?.id === r.id && inlineEdit?.field === 'type' ? (
+                      <select
+                        autoFocus
+                        value={inlineEdit.draft}
+                        onChange={e => {
+                          const v = e.target.value
+                          setInlineEdit(prev => ({ ...prev, draft: v }))
+                          saveInline(r, 'type', v)
+                        }}
+                        onBlur={() => { if (inlineEdit) saveInline(r, 'type', inlineEdit.draft) }}
+                        className="border rounded px-2 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                      >
+                        {['A','AAAA','CNAME','TXT','MX','NS','SRV','PTR','CAA'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    ) : (
+                      <span className="chip">{r.type}</span>
+                    )}
+                  </td>
+                  <td onDoubleClick={() => setInlineEdit({ id: r.id, field: 'name', draft: displayName(r) })} className="font-medium cursor-text hover:bg-gray-50/70 dark:hover:bg-white/5 rounded">
+                    {inlineEdit?.id === r.id && inlineEdit?.field === 'name' ? (
+                      <input
+                        autoFocus
+                        value={inlineEdit.draft}
+                        onChange={e => setInlineEdit(prev => ({ ...prev, draft: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveInline(r, 'name', inlineEdit.draft)
+                          if (e.key === 'Escape') setInlineEdit(null)
+                        }}
+                        onBlur={() => saveInline(r, 'name', inlineEdit.draft)}
+                        className="w-full border rounded px-2 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                      />
+                    ) : (
+                      <span>{displayName(r)}</span>
+                    )}
+                  </td>
+                  <td onDoubleClick={() => setInlineEdit({ id: r.id, field: 'content', draft: r.content })} className="text-gray-700 dark:text-gray-300 cursor-text hover:bg-gray-50/70 dark:hover:bg-white/5 rounded">
+                    {inlineEdit?.id === r.id && inlineEdit?.field === 'content' ? (
+                      <input
+                        autoFocus
+                        value={inlineEdit.draft}
+                        onChange={e => setInlineEdit(prev => ({ ...prev, draft: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveInline(r, 'content', inlineEdit.draft)
+                          if (e.key === 'Escape') setInlineEdit(null)
+                        }}
+                        onBlur={() => saveInline(r, 'content', inlineEdit.draft)}
+                        className="w-full border rounded px-2 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                      />
+                    ) : (
+                      <div className="max-w-[420px] truncate" title={r.content}>{r.content}</div>
+                    )}
                   </td>
                   <td>
-                    <span className={`chip ${r.proxied ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : ''}`}>
-                      {r.proxied ? 'Yes' : 'No'}
-                    </span>
+                    <button
+                      disabled={inlineSavingKey === `${r.id}:proxied`}
+                      onClick={() => toggleProxied(r)}
+                      className={`chip transition-colors duration-150 ${r.proxied ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-200'}`}
+                    >
+                      {inlineSavingKey === `${r.id}:proxied` ? '...' : (r.proxied ? 'Yes' : 'No')}
+                    </button>
                   </td>
                   <td className="space-x-2">
                     <button className="btn btn-outline" onClick={() => setEditing(r)}>
@@ -555,13 +766,15 @@ export default function App() {
         </div>
 
         {/* Mobile list */}
-        <div className="md:hidden grid gap-3 animate-slide-up">
+        <div className="md:hidden grid gap-3 animate-slide-up select-none">
           {visibleRecords.map(r => (
-            <div key={r.id} className="card p-4">
+            <div key={r.id} data-record-id={r.id} className="card p-4 touch-none" onPointerDown={e => handleRowPointerDown(e, r)}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="chip">{r.type}</span>
-                  <span className="text-sm text-gray-500">{r.proxied ? 'Proxied' : 'Direct'}</span>
+                  <button onClick={() => toggleProxied(r)} className={`text-xs px-2 py-0.5 rounded-full border ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
+                    {r.proxied ? 'Proxied' : 'Direct'}
+                  </button>
                 </div>
                 <div className="flex gap-2">
                   <label className="flex items-center gap-2 text-sm">
@@ -599,6 +812,18 @@ export default function App() {
             onCancel={() => setEditing(null)}
             onSubmit={handleUpsert}
           />
+        )}
+
+        {/* Toast 通知容器 */}
+        {!!toasts.length && (
+          <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+            {toasts.map(t => (
+              <div key={t.id}
+                   className={`px-4 py-2 rounded-lg shadow-soft border text-sm animate-slide-up ${t.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800/50' : t.type === 'error' ? 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800/50' : 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-900/30 dark:text-gray-200 dark:border-gray-700/50' }`}>
+                {t.message}
+              </div>
+            ))}
+          </div>
         )}
 
         {/* 批量修改弹窗 */}
