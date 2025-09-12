@@ -7,3 +7,58 @@
   @apply max-w-6xl mx-auto px-4;
 }
 
+/* Component presets */
+.card {
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-soft border border-gray-100/70 dark:border-white/5;
+}
+
+.btn {
+  @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btn-primary {
+  @apply btn bg-indigo-600 hover:bg-indigo-700 text-white shadow;
+}
+.btn-outline {
+  @apply btn border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700;
+}
+.btn-danger {
+  @apply btn bg-rose-600 hover:bg-rose-700 text-white;
+}
+
+.chip {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97) }
+  to { opacity: 1; transform: scale(1) }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px) }
+  to { opacity: 1; transform: translateY(0) }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0 }
+  100% { background-position: 200% 0 }
+}
+
+.animate-fade-in { animation: fadeIn .25s ease-out; }
+.animate-scale-in { animation: scaleIn .25s ease-out; }
+.animate-slide-up { animation: slideUp .3s ease-out; }
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 37%, rgba(0,0,0,0.06) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+/* Table helpers */
+.table th, .table td { @apply px-4 py-3; }
+.table thead th { @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300; }
+.table tbody tr { @apply border-t border-gray-100 dark:border-white/10; }
+.table tbody tr:hover { @apply bg-gray-50/70 dark:bg-white/5; }

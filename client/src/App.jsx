@@ -14,6 +14,38 @@ const api = axios.create({
   timeout: 15000,
 })
 
+function Icon({ name, className = '' }) {
+  const common = 'w-4 h-4 ' + className
+  switch (name) {
+    case 'plus':
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      )
+    case 'edit':
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+      )
+    case 'trash':
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      )
+    case 'moon':
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      )
+    case 'sun':
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      )
+    case 'cloud':
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17.58A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 4 16.25"/></svg>
+      )
+    default:
+      return null
+  }
+}
+
 function RecordForm({ initial, onCancel, onSubmit }) {
   const [type, setType] = useState(initial?.type || 'A')
   const [name, setName] = useState(initial?.name || '')
@@ -27,16 +59,16 @@ function RecordForm({ initial, onCancel, onSubmit }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-xl">
-        <div className="px-5 py-4 border-b">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="card w-full max-w-xl animate-scale-in">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10">
           <h3 className="text-lg font-semibold">{initial ? '修改解析记录' : '添加解析记录'}</h3>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Type</label>
-              <select value={type} onChange={e => setType(e.target.value)} className="w-full border rounded px-3 py-2">
+              <select value={type} onChange={e => setType(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
                 {['A','AAAA','CNAME','TXT','MX','NS','SRV','PTR','CAA'].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
@@ -44,25 +76,25 @@ function RecordForm({ initial, onCancel, onSubmit }) {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="@ 或子域名"/>
+              <input value={name} onChange={e => setName(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="@ 或子域名"/>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Content</label>
-              <input value={content} onChange={e => setContent(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="目标值 (IP/域名/文本)"/>
+              <input value={content} onChange={e => setContent(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="目标值 (IP/域名/文本)"/>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">TTL</label>
-              <input type="number" min={1} value={ttl} onChange={e => setTtl(e.target.value)} className="w-full border rounded px-3 py-2"/>
+              <input type="number" min={1} value={ttl} onChange={e => setTtl(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"/>
               <p className="text-xs text-gray-500 mt-1">1 表示自动</p>
             </div>
             <div className="flex items-center gap-2 mt-6">
-              <input id="proxied" type="checkbox" checked={proxied} onChange={e => setProxied(e.target.checked)} />
+              <input id="proxied" type="checkbox" className="rounded border-gray-300 dark:border-gray-600" checked={proxied} onChange={e => setProxied(e.target.checked)} />
               <label htmlFor="proxied">Proxied</label>
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 border rounded">取消</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">保存</button>
+            <button type="button" onClick={onCancel} className="btn btn-outline">取消</button>
+            <button type="submit" className="btn btn-primary">保存</button>
           </div>
         </form>
       </div>
@@ -76,11 +108,19 @@ export default function App() {
   const [dnsRecords, setDnsRecords] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dark, setDark] = useState(false)
 
   const selectedZone = useMemo(() => zones.find(z => z.id === selectedZoneId), [zones, selectedZoneId])
 
   // Load zones on mount
   useEffect(() => {
+    // Initialize dark mode from storage or system preference
+    const saved = localStorage.getItem('theme')
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    const initialDark = saved ? saved === 'dark' : prefersDark
+    setDark(initialDark)
+    document.documentElement.classList.toggle('dark', initialDark)
+
     async function loadZones() {
       setIsLoading(true)
       setError('')
@@ -175,83 +215,146 @@ export default function App() {
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-2xl font-bold mb-6">Cloudflare DNS 解析管理</h1>
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-lg">
+        <div className="container py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 backdrop-blur">
+              <Icon name="cloud" className="w-5 h-5" />
+            </span>
+            <h1 className="text-lg md:text-xl font-semibold">Cloudflare DNS 解析管理</h1>
+          </div>
+          <button
+            className="btn btn-outline text-white border-white/40 hover:bg-white/10"
+            onClick={() => {
+              const next = !dark
+              setDark(next)
+              document.documentElement.classList.toggle('dark', next)
+              localStorage.setItem('theme', next ? 'dark' : 'light')
+            }}
+            aria-label="切换主题"
+          >
+            <Icon name={dark ? 'sun' : 'moon'} />
+            <span className="hidden sm:inline">{dark ? '浅色' : '深色'}</span>
+          </button>
+        </div>
+      </header>
 
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <label className="block text-sm font-medium mb-2">选择域名</label>
-        <select
-          value={selectedZoneId}
-          onChange={e => setSelectedZoneId(e.target.value)}
-          className="w-full md:w-1/2 border rounded px-3 py-2"
-        >
-          <option value="">请选择一个域名</option>
-          {zones.map(z => (
-            <option key={z.id} value={z.id}>{z.name}</option>
-          ))}
-        </select>
-      </div>
+      <main className="container py-6 md:py-8">
+        <div className="card p-4 md:p-6 mb-6 animate-slide-up">
+          <label className="block text-sm font-medium mb-2">选择域名</label>
+          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+            <select
+              value={selectedZoneId}
+              onChange={e => setSelectedZoneId(e.target.value)}
+              className="w-full md:w-1/2 border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+            >
+              <option value="">请选择一个域名</option>
+              {zones.map(z => (
+                <option key={z.id} value={z.id}>{z.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setEditing({})}
+              disabled={!selectedZoneId}
+              className="btn btn-primary disabled:opacity-50"
+            >
+              <Icon name="plus" /> 添加新记录
+            </button>
+          </div>
+        </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-semibold">解析记录</h2>
-        <button
-          onClick={() => setEditing({})}
-          disabled={!selectedZoneId}
-          className="px-3 py-2 bg-green-600 text-white rounded disabled:opacity-50"
-        >添加新记录</button>
-      </div>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg border bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-900/50">
+            {String(error)}
+          </div>
+        )}
 
-      {error && (
-        <div className="mb-4 p-3 rounded bg-red-50 text-red-700 border border-red-200">{String(error)}</div>
-      )}
-
-      <div className="overflow-x-auto bg-white rounded-lg shadow">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="text-left px-4 py-2">Type</th>
-              <th className="text-left px-4 py-2">Name</th>
-              <th className="text-left px-4 py-2">Content</th>
-              <th className="text-left px-4 py-2">Proxied</th>
-              <th className="text-left px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dnsRecords.map(r => (
-              <tr key={r.id} className="border-t">
-                <td className="px-4 py-2">{r.type}</td>
-                <td className="px-4 py-2">{r.name}</td>
-                <td className="px-4 py-2">{r.content}</td>
-                <td className="px-4 py-2">{r.proxied ? 'Yes' : 'No'}</td>
-                <td className="px-4 py-2 space-x-2">
-                  <button className="px-2 py-1 border rounded" onClick={() => setEditing(r)}>修改</button>
-                  <button className="px-2 py-1 border rounded text-red-600" onClick={() => handleDelete(r)}>删除</button>
-                </td>
-              </tr>
-            ))}
-            {!dnsRecords.length && (
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto card animate-slide-up">
+          <table className="table min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-white/5">
               <tr>
-                <td className="px-4 py-6 text-gray-500" colSpan={5}>{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Content</th>
+                <th>Proxied</th>
+                <th>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {dnsRecords.map(r => (
+                <tr key={r.id}>
+                  <td><span className="chip">{r.type}</span></td>
+                  <td className="font-medium">{r.name}</td>
+                  <td className="text-gray-700 dark:text-gray-300">{r.content}</td>
+                  <td>
+                    <span className={`chip ${r.proxied ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : ''}`}>
+                      {r.proxied ? 'Yes' : 'No'}
+                    </span>
+                  </td>
+                  <td className="space-x-2">
+                    <button className="btn btn-outline" onClick={() => setEditing(r)}>
+                      <Icon name="edit" /> 修改
+                    </button>
+                    <button className="btn btn-danger" onClick={() => handleDelete(r)}>
+                      <Icon name="trash" /> 删除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!dnsRecords.length && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      {isLoading && (
-        <p className="mt-4 text-sm text-gray-500">加载中...</p>
-      )}
+        {/* Mobile list */}
+        <div className="md:hidden grid gap-3 animate-slide-up">
+          {dnsRecords.map(r => (
+            <div key={r.id} className="card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="chip">{r.type}</span>
+                  <span className="text-sm text-gray-500">{r.proxied ? 'Proxied' : 'Direct'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button className="btn btn-outline px-2 py-1" onClick={() => setEditing(r)}><Icon name="edit" /></button>
+                  <button className="btn btn-danger px-2 py-1" onClick={() => handleDelete(r)}><Icon name="trash" /></button>
+                </div>
+              </div>
+              <div className="font-medium">{r.name}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 break-all">{r.content}</div>
+            </div>
+          ))}
+          {!dnsRecords.length && (
+            <div className="text-center text-gray-500 py-10 card">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</div>
+          )}
+        </div>
 
-      {editing !== null && (
-        <RecordForm
-          initial={editing?.id ? editing : null}
-          onCancel={() => setEditing(null)}
-          onSubmit={handleUpsert}
-        />
-      )}
+        {isLoading && (
+          <div className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-3 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-2 shadow-soft">
+            <span className="inline-block w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+            <span className="text-sm">加载中...</span>
+          </div>
+        )}
 
-      <footer className="mt-10 text-xs text-gray-500">
-        {selectedZone && <span>当前域名：{selectedZone.name}</span>}
-      </footer>
+        {editing !== null && (
+          <RecordForm
+            initial={editing?.id ? editing : null}
+            onCancel={() => setEditing(null)}
+            onSubmit={handleUpsert}
+          />
+        )}
+
+        <footer className="mt-10 text-xs text-gray-500">
+          {selectedZone && <span>当前域名：{selectedZone.name}</span>}
+        </footer>
+      </main>
     </div>
-  )}
+  )
+}
+
