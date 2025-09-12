@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import RecordFormModal from './components/RecordForm.jsx'
 
@@ -139,17 +139,28 @@ export default function App() {
     return r.name.endsWith(suffix) ? r.name.slice(0, -suffix.length) : r.name
   }
 
+  // 名称转换：相对名 -> 绝对名（无需用户输入完整域名）
+  function toAbsoluteName(input) {
+    const zoneName = selectedZone?.name || ''
+    const v = String(input || '').trim()
+    if (!v || v === '@') return zoneName
+    if (!zoneName) return v
+    if (v === zoneName || v.endsWith('.' + zoneName)) return v
+    return `${v}.${zoneName}`
+  }
+
   // 新增/修改（无感刷新）
   async function handleUpsert(input) {
     if (!selectedZoneId) return
     try {
+      const body = { ...input, name: toAbsoluteName(input.name) }
       if (editing?.id) {
-        const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${editing.id}`, input)
+        const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${editing.id}`, body)
         if (!data?.success) throw new Error(data?.message || '修改失败')
-        setRecords(prev => prev.map(r => r.id === editing.id ? (data.result || { ...r, ...input }) : r))
+        setRecords(prev => prev.map(r => r.id === editing.id ? (data.result || { ...r, ...body }) : r))
         notify('success', '修改成功')
       } else {
-        const { data } = await api.post(`/api/zones/${selectedZoneId}/dns_records`, input)
+        const { data } = await api.post(`/api/zones/${selectedZoneId}/dns_records`, body)
         if (!data?.success) throw new Error(data?.message || '新增失败')
         setRecords(prev => [ ...(data.result ? [data.result] : []), ...prev ])
         notify('success', '添加成功')
@@ -261,7 +272,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6 pb-28 md:pb-6">
         {/* 工具栏 */}
         <div className="card">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
@@ -281,7 +292,7 @@ export default function App() {
               </select>
               <button className="btn btn-outline" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>{sortDir === 'asc' ? '升序' : '降序'}</button>
             </div>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-2 justify-start md:justify-end overflow-x-auto no-scrollbar">
               <select value={pageSize} onChange={e => { setPage(1); setPageSize(Number(e.target.value)) }} className="select">
                 <option value={25}>每页 25</option>
                 <option value={50}>每页 50</option>
@@ -486,4 +497,5 @@ export default function App() {
     </div>
   )
 }
+
 

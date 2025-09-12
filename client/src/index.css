@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -78,3 +78,15 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+
+
+/* 紧凑尺寸（移动端工具栏） */
+.btn-sm { @apply px-2 py-1 text-sm; }
+.input-sm { @apply px-2 py-1 text-sm; }
+.select-sm { @apply px-2 py-1 text-sm; }
+
+/* 隐藏横向滚动条 */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+

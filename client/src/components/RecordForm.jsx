@@ -39,7 +39,8 @@ export default function RecordForm({ initial, onCancel, onSubmit }) {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="@ 或子域名"/>
+              <input value={name} onChange={e => setName(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="@ 或子域名（无需包含域名）"/>
+              <p className="text-xs text-gray-500 mt-1">示例：@、www、api；无需写成 www.你的域名.com</p>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Content</label>
@@ -64,4 +65,3 @@ export default function RecordForm({ initial, onCancel, onSubmit }) {
     </div>
   )
 }
-
