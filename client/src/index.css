@@ -62,3 +62,11 @@
 .table thead th { @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300; }
 .table tbody tr { @apply border-t border-gray-100 dark:border-white/10; }
 .table tbody tr:hover { @apply bg-gray-50/70 dark:bg-white/5; }
+
+/* 多行截断（移动端内容） */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

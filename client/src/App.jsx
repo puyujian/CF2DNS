@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 
 // Compute API base URL for both dev and production:
@@ -13,6 +13,8 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || defaultBase,
   timeout: 15000,
 })
+// 客户端缓存 TTL（毫秒），可通过 VITE_CACHE_TTL_MS 覆盖
+const RECORDS_CACHE_TTL = Number(import.meta.env.VITE_CACHE_TTL_MS || 60000)
 
 function Icon({ name, className = '' }) {
   const common = 'w-4 h-4 ' + className
@@ -109,6 +111,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [dark, setDark] = useState(false)
+  const recordsCacheRef = useRef(new Map()) // zoneId -> { ts, data }
   // 过滤与排序
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState('name') // name | type | content | proxied
@@ -150,41 +153,69 @@ export default function App() {
     loadZones()
   }, [])
 
-  // Load DNS records when zone changes
-  useEffect(() => {
-    if (!selectedZoneId) {
-      setDnsRecords([])
-      return
-    }
-    async function loadRecords() {
-      setIsLoading(true)
-      setError('')
-      try {
-        const { data } = await api.get(`/api/zones/${selectedZoneId}/dns_records`)
-        if (data?.success) {
-          setDnsRecords(data.result || [])
-        } else {
-          throw new Error(JSON.stringify(data))
-        }
-      } catch (e) {
-        setError(e.message || '加载解析记录失败')
-      } finally {
-        setIsLoading(false)
+  // 读取与写入缓存
+  function readRecordsCache(zoneId) {
+    if (!zoneId) return null
+    const now = Date.now()
+    const m = recordsCacheRef.current
+    const mem = m.get(zoneId)
+    if (mem && now - mem.ts <= RECORDS_CACHE_TTL) return mem.data
+    try {
+      const raw = localStorage.getItem(`cf2dns:records:${zoneId}`)
+      if (!raw) return null
+      const obj = JSON.parse(raw)
+      if (obj && obj.ts && Array.isArray(obj.data) && now - obj.ts <= RECORDS_CACHE_TTL) {
+        // 写回内存，减少反序列化成本
+        m.set(zoneId, { ts: obj.ts, data: obj.data })
+        return obj.data
       }
+    } catch (_) {}
+    return null
+  }
+  function writeRecordsCache(zoneId, data) {
+    if (!zoneId) return
+    const obj = { ts: Date.now(), data }
+    recordsCacheRef.current.set(zoneId, obj)
+    try { localStorage.setItem(`cf2dns:records:${zoneId}`, JSON.stringify(obj)) } catch (_) {}
+  }
+
+  // 统一拉取函数：可后台刷新（不阻塞 UI）
+  async function fetchRecords(background = false) {
+    if (!selectedZoneId) return
+    if (!background) { setIsLoading(true); setError('') }
+    try {
+      const { data } = await api.get(`/api/zones/${selectedZoneId}/dns_records`)
+      if (data?.success) {
+        const list = data.result || []
+        setDnsRecords(list)
+        writeRecordsCache(selectedZoneId, list)
+      } else {
+        throw new Error(JSON.stringify(data))
+      }
+    } catch (e) {
+      if (!background) setError(e.message || '加载解析记录失败')
+    } finally {
+      if (!background) setIsLoading(false)
     }
-    loadRecords()
+  }
+
+  // 当域名切换时：先读缓存“秒开”，再后台刷新
+  useEffect(() => {
+    if (!selectedZoneId) { setDnsRecords([]); return }
+    const cached = readRecordsCache(selectedZoneId)
+    if (cached) {
+      setDnsRecords(cached)
+      fetchRecords(true) // 后台刷新
+    } else {
+      fetchRecords(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedZoneId])
 
   const [editing, setEditing] = useState(null) // null | record object | 'create'
 
-  async function refreshRecords() {
-    if (!selectedZoneId) return
-    try {
-      const { data } = await api.get(`/api/zones/${selectedZoneId}/dns_records`)
-      if (data?.success) setDnsRecords(data.result || [])
-    } catch (e) {
-      // ignore here
-    }
+  async function refreshRecords(background = false) {
+    await fetchRecords(background)
   }
 
   async function handleDelete(record) {
@@ -496,7 +527,9 @@ export default function App() {
                   </td>
                   <td><span className="chip">{r.type}</span></td>
                   <td className="font-medium">{displayName(r)}</td>
-                  <td className="text-gray-700 dark:text-gray-300">{r.content}</td>
+                  <td className="text-gray-700 dark:text-gray-300">
+                    <div className="max-w-[420px] truncate" title={r.content}>{r.content}</div>
+                  </td>
                   <td>
                     <span className={`chip ${r.proxied ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : ''}`}>
                       {r.proxied ? 'Yes' : 'No'}
@@ -512,7 +545,7 @@ export default function App() {
                   </td>
                 </tr>
               ))}
-              {!dnsRecords.length && (
+              {!visibleRecords.length && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-gray-500">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</td>
                 </tr>
@@ -545,10 +578,10 @@ export default function App() {
                 </div>
               </div>
               <div className="font-medium">{displayName(r)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300 break-all">{r.content}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 break-all line-clamp-2" title={r.content}>{r.content}</div>
             </div>
           ))}
-          {!dnsRecords.length && (
+          {!visibleRecords.length && (
             <div className="text-center text-gray-500 py-10 card">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</div>
           )}
         </div>
