@@ -88,7 +88,7 @@ export default function App() {
     if (!background) { setIsLoading(true); setError('') }
     try {
       const { data } = await api.get(`/api/zones/${zoneId}/dns_records`)
-      if (data?.success) setRecords(data.result || [])
+      if (data?.success) setRecords(Array.isArray(data.result) ? data.result : (Array.isArray(data?.data?.result) ? data.data.result : []))
       else throw new Error(data?.message || '加载解析记录失败')
     } catch (e) {
       if (e?.response?.status === 401) { setNeedLogin(true); setError('') }
@@ -98,13 +98,19 @@ export default function App() {
 
   useEffect(() => { fetchZones() }, [])
 
-  function handleSelectZone(e) {
+  async function handleSelectZone(e) {
     const id = e.target.value
-    setSelectedZoneId(id)
-    setRecords([])
-    setSelectedIds([])
-    setPage(1)
-    if (id) fetchRecords(id)
+    try {
+      setSelectedZoneId(id)
+      setRecords([])
+      setSelectedIds([])
+      setPage(1)
+      if (id) await fetchRecords(id)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('选择域名失败:', err)
+      notify('error', err?.message || '加载域名记录失败')
+    }
   }
 
   const visibleRecords = useMemo(() => {
