@@ -9,11 +9,11 @@
 
 /* Component presets */
 .card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-soft border border-gray-100/70 dark:border-white/5;
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-soft border border-gray-100/70 dark:border-white/5 transition-shadow duration-200 ease-out hover:shadow-lg;
 }
 
 .btn {
-  @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 font-medium transition-[colors,transform] duration-200 ease-out active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
 }
 .btn-primary {
   @apply btn bg-indigo-600 hover:bg-indigo-700 text-white shadow;
@@ -27,14 +27,14 @@
 
 /* 表单预设 */
 .input {
-  @apply border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 w-full;
+  @apply border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
 }
 .select {
-  @apply border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600;
+  @apply border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
 }
 
 .chip {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200;
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 transition-colors duration-200 ease-out;
 }
 
 /* Animations */
@@ -69,7 +69,7 @@
 .table th, .table td { @apply px-4 py-3; }
 .table thead th { @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300; }
 .table tbody tr { @apply border-t border-gray-100 dark:border-white/10; }
-.table tbody tr:hover { @apply bg-gray-50/70 dark:bg-white/5; }
+.table tbody tr:hover { @apply bg-gray-50/70 dark:bg-white/5 transition-colors duration-150; }
 
 /* 多行截断（移动端内容） */
 .line-clamp-2 {
@@ -89,4 +89,14 @@
 /* 隐藏横向滚动条 */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+
+/* 背景模糊卡片（用于粘性条） */
+.backdrop-blur-card { @apply backdrop-blur-sm bg-white/90 dark:bg-gray-900/70; }
+
+/* 系统减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-scale-in, .animate-slide-up { animation: none !important; }
+  .skeleton { animation: none !important; }
+}
 

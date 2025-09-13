@@ -430,7 +430,7 @@ export default function App() {
 
         {/* 移动端粘性批量操作条 */}
         {selectedIds.length > 0 && (
-          <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 card flex items-center justify-between px-4 py-3">
+          <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 card backdrop-blur-card flex items-center justify-between px-4 py-3">
             <div className="text-sm">已选 {selectedIds.length} 条</div>
             <div className="flex gap-2">
               <button className="btn btn-outline" onClick={() => setSelectedIds([])}>清空</button>
@@ -518,6 +518,7 @@ export default function App() {
     </div>
   )
 }
+
 
 
 
