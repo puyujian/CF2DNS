@@ -124,17 +124,17 @@ export default function App() {
     } finally { setIsLoading(false) }
   }
 
-  async function fetchRecords(zoneId, background = false, forceRefresh = false) {
+  async function fetchRecords(zoneId, background = false, forceRefresh = false, operation = null) {
     if (!zoneId) return
     
     const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
     const now = Date.now()
     const cached = recordsCache[zoneId]
     
-    // 检查缓存是否有效
-    if (!forceRefresh && cached && (now - cached.timestamp < CACHE_DURATION)) {
+    // 如果有特定操作验证，忽略缓存，否则检查缓存是否有效
+    if (!forceRefresh && !operation && cached && (now - cached.timestamp < CACHE_DURATION)) {
       setRecords(cached.data)
-      return
+      return cached.data
     }
     
     if (!background) { setIsLoading(true); setError('') }
@@ -142,12 +142,25 @@ export default function App() {
       const { data } = await api.get(`/api/zones/${zoneId}/dns_records`)
       if (data?.success) {
         const recordsData = Array.isArray(data.result) ? data.result : (Array.isArray(data?.data?.result) ? data.data.result : [])
+        
+        // 如果是特定操作验证，检查操作是否真正生效
+        if (operation) {
+          const operationVerified = verifyOperation(operation, recordsData)
+          if (!operationVerified) {
+            // 操作未生效，延迟重试
+            if (!background) setIsLoading(false)
+            setTimeout(() => fetchRecords(zoneId, true, true, operation), 1000)
+            return recordsData
+          }
+        }
+        
         setRecords(recordsData)
         // 更新缓存
         setRecordsCache(prev => ({
           ...prev,
           [zoneId]: { data: recordsData, timestamp: now }
         }))
+        return recordsData
       } else {
         throw new Error(data?.message || '加载解析记录失败')
       }
@@ -160,12 +173,39 @@ export default function App() {
         if (cached) {
           setRecords(cached.data)
           notify('info', '网络异常，显示缓存数据')
+          return cached.data
         }
       }
     } finally { if (!background) setIsLoading(false) }
+    return []
   }
 
   useEffect(() => { fetchZones() }, [])
+
+  // 验证操作是否真正生效
+  function verifyOperation(operation, serverRecords) {
+    switch (operation.type) {
+      case 'delete':
+        // 验证记录是否真的被删除
+        return !serverRecords.some(r => r.id === operation.recordId)
+      case 'add':
+        // 验证新记录是否真的存在（通过name和type匹配，因为新记录的ID可能不同）
+        return serverRecords.some(r => 
+          r.name === operation.record.name && 
+          r.type === operation.record.type &&
+          r.content === operation.record.content
+        )
+      case 'update':
+        // 验证记录是否真的被更新
+        const updatedRecord = serverRecords.find(r => r.id === operation.recordId)
+        return updatedRecord && 
+               updatedRecord.name === operation.record.name &&
+               updatedRecord.type === operation.record.type &&
+               updatedRecord.content === operation.record.content
+      default:
+        return true
+    }
+  }
 
   async function handleSelectZone(e) {
     const id = e.target.value
@@ -312,6 +352,9 @@ export default function App() {
           return prev
         })
         notify('success', '修改成功')
+        // 后台验证修改是否真正生效
+        const operation = { type: 'update', recordId: editing.id, record: body }
+        fetchRecords(selectedZoneId, true, true, operation)
       } else {
         const { data } = await api.post(`/api/zones/${selectedZoneId}/dns_records`, body)
         if (!data?.success) throw new Error(data?.message || '新增失败')
@@ -331,10 +374,11 @@ export default function App() {
           return prev
         })
         notify('success', '添加成功')
+        // 后台验证新增是否真正生效
+        const operation = { type: 'add', record: body }
+        fetchRecords(selectedZoneId, true, true, operation)
       }
       setEditing(null)
-      // 延迟后台刷新以确保数据同步，但不影响用户体验
-      setTimeout(() => fetchRecords(selectedZoneId, true, true), 2000)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '操作失败'
       notify('error', msg)
@@ -362,8 +406,9 @@ export default function App() {
         return prev
       })
       notify('success', '删除成功')
-      // 延迟后台刷新确保数据同步
-      setTimeout(() => fetchRecords(selectedZoneId, true, true), 1000)
+      // 后台验证删除是否真正生效
+      const operation = { type: 'delete', recordId: record.id }
+      fetchRecords(selectedZoneId, true, true, operation)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '删除失败'
       notify('error', msg)
