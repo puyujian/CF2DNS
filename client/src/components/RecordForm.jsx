@@ -22,43 +22,47 @@ export default function RecordForm({ initial, onCancel, onSubmit }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="card w-full max-w-xl animate-scale-in">
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10">
-          <h3 className="text-lg font-semibold">{initial ? '修改解析记录' : '添加解析记录'}</h3>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="card w-full max-w-2xl animate-scale-in shadow-2xl border-2 border-gray-200 dark:border-gray-600">
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            {initial ? '修改解析记录' : '添加解析记录'}
+          </h3>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
-              <select value={type} onChange={e => setType(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="group">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">记录类型</label>
+              <select value={type} onChange={e => setType(e.target.value)} className="select pulse-ring">
                 {['A','AAAA','CNAME','TXT','MX','NS','SRV','PTR','CAA'].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="@ 或子域名（无需包含域名）"/>
-              <p className="text-xs text-gray-500 mt-1">示例：@、www、api；无需写成 www.你的域名.com</p>
+            <div className="group">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">记录名称</label>
+              <input value={name} onChange={e => setName(e.target.value)} className="input pulse-ring" placeholder="@ 或子域名（无需包含域名）"/>
+              <p className="text-xs text-gray-500 mt-2 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">示例：@、www、api；无需写成 www.你的域名.com</p>
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Content</label>
-              <input value={content} onChange={e => setContent(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600" placeholder="目标（IP/域名/文本）"/>
+            <div className="md:col-span-2 group">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">记录内容</label>
+              <input value={content} onChange={e => setContent(e.target.value)} className="input pulse-ring" placeholder="目标（IP/域名/文本）"/>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">TTL</label>
-              <input type="number" min={1} value={ttl} onChange={e => setTtl(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"/>
-              <p className="text-xs text-gray-500 mt-1">1 表示自动</p>
+            <div className="group">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">TTL（秒）</label>
+              <input type="number" min={1} value={ttl} onChange={e => setTtl(e.target.value)} className="input pulse-ring"/>
+              <p className="text-xs text-gray-500 mt-2 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">1 表示自动</p>
             </div>
-            <div className="flex items-center gap-2 mt-6">
-              <input id="proxied" type="checkbox" className="rounded border-gray-300 dark:border-gray-600" checked={proxied} onChange={e => setProxied(e.target.checked)} />
-              <label htmlFor="proxied">Proxied</label>
+            <div className="flex items-center gap-3 mt-6 group">
+              <input id="proxied" type="checkbox" className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 transition-all" checked={proxied} onChange={e => setProxied(e.target.checked)} />
+              <label htmlFor="proxied" className="font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">启用 Cloudflare 代理</label>
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button type="button" onClick={onCancel} className="btn btn-outline">取消</button>
-            <button type="submit" className="btn btn-primary">保存</button>
+            <button type="submit" className="btn btn-primary pulse-ring">
+              {initial ? '保存修改' : '添加记录'}
+            </button>
           </div>
         </form>
       </div>

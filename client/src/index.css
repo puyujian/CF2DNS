@@ -9,32 +9,85 @@
 
 /* Component presets */
 .card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-soft border border-gray-100/70 dark:border-white/5 transition-shadow duration-200 ease-out hover:shadow-lg;
+  @apply bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-xl shadow-soft border border-gray-200/80 dark:border-gray-700/50 transition-all duration-300 ease-out hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-0.5;
 }
 
 .btn {
-  @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 font-medium transition-[colors,transform] duration-200 ease-out active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
+  @apply relative inline-flex items-center gap-2 rounded-lg px-4 py-2.5 font-medium transition-all duration-200 ease-out active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 overflow-hidden;
+}
+.btn::before {
+  @apply absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 transition-opacity duration-200;
+  content: '';
+}
+.btn:hover::before {
+  @apply opacity-100;
 }
 .btn-primary {
-  @apply btn bg-indigo-600 hover:bg-indigo-700 text-white shadow;
+  @apply btn bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-lg shadow-indigo-500/25;
 }
 .btn-outline {
-  @apply btn border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700;
+  @apply btn border-2 border-gray-300 dark:border-gray-600 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300;
 }
 .btn-danger {
-  @apply btn bg-rose-600 hover:bg-rose-700 text-white;
+  @apply btn bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white shadow-lg shadow-rose-500/25;
 }
 
 /* 表单预设 */
 .input {
-  @apply border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
+  @apply border-2 rounded-lg px-3.5 py-2.5 bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 w-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:border-indigo-500 dark:focus:border-indigo-400 hover:border-gray-400 dark:hover:border-gray-500;
 }
 .select {
-  @apply border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
+  @apply border-2 rounded-lg px-3.5 py-2.5 bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:border-indigo-500 dark:focus:border-indigo-400 hover:border-gray-400 dark:hover:border-gray-500;
 }
 
 .chip {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 transition-colors duration-200 ease-out;
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 transition-all duration-200 ease-out hover:scale-105 shadow-sm;
+}
+
+/* 新增动效样式 */
+.floating {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+.gradient-shimmer {
+  background: linear-gradient(45deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer-gradient 2s infinite;
+}
+
+@keyframes shimmer-gradient {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.pulse-ring {
+  position: relative;
+}
+
+.pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, #6366f1, #8b5cf6, #06b6d4);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+}
+
+.pulse-ring:hover::after {
+  opacity: 0.3;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.05); opacity: 0.1; }
 }
 
 /* Animations */
@@ -67,9 +120,9 @@
 
 /* Table helpers */
 .table th, .table td { @apply px-4 py-3; }
-.table thead th { @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300; }
-.table tbody tr { @apply border-t border-gray-100 dark:border-white/10; }
-.table tbody tr:hover { @apply bg-gray-50/70 dark:bg-white/5 transition-colors duration-150; }
+.table thead th { @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-700/50; }
+.table tbody tr { @apply border-t border-gray-100 dark:border-white/10 transition-all duration-150; }
+.table tbody tr:hover { @apply bg-gradient-to-r from-gray-50/70 to-indigo-50/30 dark:from-white/5 dark:to-indigo-900/20 scale-[1.01] shadow-sm; }
 
 /* 多行截断（移动端内容） */
 .line-clamp-2 {

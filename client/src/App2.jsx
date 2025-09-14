@@ -298,15 +298,15 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-gray-800/80 backdrop-blur border-b border-gray-200 dark:border-white/10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-gray-900 dark:text-gray-100">
+      <header className="sticky top-0 z-10 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-700/50 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Icon name="cloud" className="text-indigo-600" />
-            <h1 className="font-semibold">CF2DNS</h1>
+            <Icon name="cloud" className="text-indigo-600 floating" />
+            <h1 className="font-bold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">CF2DNS</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="btn btn-outline" onClick={() => setDark(v => !v)}>
+            <button className="btn btn-outline pulse-ring" onClick={() => setDark(v => !v)}>
               <Icon name={dark ? 'sun' : 'moon'} />
             </button>
             <button className="btn btn-outline" onClick={() => setNeedLogin(true)}>{hasToken ? '重新登录' : '登录'}</button>
@@ -407,36 +407,51 @@ export default function App() {
         </div>
 
         {/* 移动端卡片 */}
-        <div className="md:hidden grid gap-3">
-          {pageRecords.map(r => (
-            <div key={r.id} className="card p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <input type="checkbox" className="rounded border-gray-300 dark:border-gray-600" checked={selectedIds.includes(r.id)} onChange={e => toggleSelect(r.id, e.target.checked)} />
-                  <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-semibold ${typeCircleClass(r.type)}`}>{r.type || '?'}</span>
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{displayName(r)}</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-300 break-all" title={r.content}>{r.content}</div>
+        <div className="md:hidden grid gap-4">
+          {pageRecords.map((r, index) => (
+            <div key={r.id} className="card p-4 hover:shadow-xl transition-all duration-300" style={{animationDelay: `${index * 100}ms`}}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 transition-colors" 
+                    checked={selectedIds.includes(r.id)} 
+                    onChange={e => toggleSelect(r.id, e.target.checked)} 
+                  />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-white text-sm font-bold shadow-lg ${typeCircleClass(r.type)} pulse-ring`}>
+                    {r.type || '?'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100 truncate text-base">{displayName(r)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 break-all leading-relaxed" title={r.content}>
+                      {r.content}
+                    </div>
                   </div>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full border select-none ${r.proxied ? 'border-emerald-300 text-emerald-700 dark:text-emerald-200' : 'border-gray-300 text-gray-600 dark:text-gray-300'}`}>
-                  {r.proxied ? 'Proxied' : 'Direct'}
-                </span>
+                <div className="ml-3 flex flex-col items-end gap-2">
+                  <span className={`text-xs px-3 py-1 rounded-full border-2 font-medium select-none transition-all duration-200 ${r.proxied ? 'border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-600' : 'border-gray-300 text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'}`}>
+                    {r.proxied ? 'Proxied' : 'Direct'}
+                  </span>
+                </div>
               </div>
-              <div className="mt-3 flex justify-end gap-2">
-                <button className="btn btn-outline px-2 py-1" onClick={() => setEditing({ ...r, name: toRelativeName(r.name) })}>编辑</button>
-                <button className="btn btn-danger px-2 py-1" onClick={() => handleDelete(r)}>删除</button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <button className="btn btn-outline px-3 py-1.5 text-sm" onClick={() => setEditing({ ...r, name: toRelativeName(r.name) })}>编辑</button>
+                <button className="btn btn-danger px-3 py-1.5 text-sm" onClick={() => handleDelete(r)}>删除</button>
               </div>
             </div>
           ))}
           {isLoading && !pageRecords.length && (
-            <div className="card p-4">
-              <div className="h-4 w-1/3 skeleton mb-3"></div>
-              <div className="h-3 w-2/3 skeleton"></div>
+            <div className="card p-4 gradient-shimmer">
+              <div className="h-5 w-1/3 bg-gray-200 dark:bg-gray-600 rounded mb-3"></div>
+              <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-600 rounded"></div>
             </div>
           )}
           {!isLoading && !pageRecords.length && (
-            <div className="text-center text-gray-500 py-10 card">{selectedZone ? '暂无记录' : '请选择域名后查看解析记录'}</div>
+            <div className="text-center text-gray-500 py-12 card">
+              <div className="text-6xl mb-4">📋</div>
+              <div className="text-lg font-medium mb-2">{selectedZone ? '暂无记录' : '请选择域名'}</div>
+              <div className="text-sm">{selectedZone ? '开始添加DNS记录吧' : '选择域名后查看解析记录'}</div>
+            </div>
           )}
         </div>
 
@@ -451,12 +466,15 @@ export default function App() {
 
         {/* 移动端粘性批量操作条 */}
         {selectedIds.length > 0 && (
-          <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 card backdrop-blur-card flex items-center justify-between px-4 py-3">
-            <div className="text-sm">已选 {selectedIds.length} 条</div>
+          <div className="md:hidden fixed bottom-6 left-4 right-4 z-40 card backdrop-blur-card flex items-center justify-between px-4 py-3 shadow-2xl border-2 border-indigo-200 dark:border-indigo-700 animate-slide-up">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium">已选 {selectedIds.length} 条</span>
+            </div>
             <div className="flex gap-2">
-              <button className="btn btn-outline" onClick={() => setSelectedIds([])}>清空</button>
-              <button className="btn btn-primary" onClick={() => setBatchOpen(true)}>批量修改</button>
-              <button className="btn btn-danger" onClick={handleBatchDelete}>批量删除</button>
+              <button className="btn btn-outline px-3 py-1.5 text-sm" onClick={() => setSelectedIds([])}>清空</button>
+              <button className="btn btn-primary px-3 py-1.5 text-sm" onClick={() => setBatchOpen(true)}>批量修改</button>
+              <button className="btn btn-danger px-3 py-1.5 text-sm" onClick={handleBatchDelete}>批量删除</button>
             </div>
           </div>
         )}
