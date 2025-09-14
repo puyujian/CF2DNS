@@ -13,7 +13,12 @@
 }
 
 .btn {
-  @apply relative inline-flex items-center gap-2 rounded-lg px-4 py-2.5 font-medium transition-all duration-200 ease-out active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 overflow-hidden;
+  @apply relative inline-flex items-center gap-2 rounded-lg px-4 py-2.5 font-medium transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 overflow-hidden;
+  transform: translateY(0px);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.98);
+  transition-duration: 100ms;
 }
 .btn::before {
   @apply absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 transition-opacity duration-200;
@@ -21,6 +26,20 @@
 }
 .btn:hover::before {
   @apply opacity-100;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s ease;
+}
+.btn:active::after {
+  opacity: 1;
+  transform: scale(1);
+  transition-duration: 0.1s;
 }
 .btn-primary {
   @apply btn bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-lg shadow-indigo-500/25;
@@ -36,15 +55,125 @@
 .input {
   @apply border-2 rounded-lg px-3.5 py-2.5 bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 w-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:border-indigo-500 dark:focus:border-indigo-400 hover:border-gray-400 dark:hover:border-gray-500;
 }
+.input:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
 .select {
   @apply border-2 rounded-lg px-3.5 py-2.5 bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:border-indigo-500 dark:focus:border-indigo-400 hover:border-gray-400 dark:hover:border-gray-500;
 }
-
-.chip {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 transition-all duration-200 ease-out hover:scale-105 shadow-sm;
+.select:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
 }
 
-/* 新增动效样式 */
+/* 复选框动效 */
+input[type="checkbox"] {
+  @apply transition-all duration-200 ease-out;
+  transform: scale(1);
+}
+input[type="checkbox"]:checked {
+  animation: checkboxPop 0.2s ease-out;
+}
+input[type="checkbox"]:focus {
+  transform: scale(1.05);
+}
+
+@keyframes checkboxPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.chip {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 transition-all duration-200 ease-out hover:scale-105 shadow-sm cursor-pointer;
+  transform: scale(1);
+}
+.chip:active {
+  transform: scale(0.95);
+  transition-duration: 100ms;
+}
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.chip:active::after {
+  opacity: 1;
+}
+
+/* 数据更新动画 */
+.record-enter {
+  animation: recordEnter 0.4s ease-out;
+}
+.record-exit {
+  animation: recordExit 0.3s ease-in forwards;
+}
+.record-update {
+  animation: recordUpdate 0.5s ease-out;
+}
+
+@keyframes recordEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes recordExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 200px;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}
+
+@keyframes recordUpdate {
+  0% { background-color: rgba(99, 102, 241, 0.1); transform: scale(1); }
+  50% { background-color: rgba(99, 102, 241, 0.2); transform: scale(1.02); }
+  100% { background-color: transparent; transform: scale(1); }
+}
+
+/* 加载状态增强 */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer-loading 1.5s infinite;
+}
+
+@keyframes shimmer-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.bounce-in {
+  animation: bounceIn 0.6s ease-out;
+}
+
+@keyframes bounceIn {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
 .floating {
   animation: float 3s ease-in-out infinite;
 }

@@ -44,6 +44,7 @@ export default function App() {
   const [batchOpen, setBatchOpen] = useState(false)
   const [batchTTL, setBatchTTL] = useState('')
   const [batchProxied, setBatchProxied] = useState('keep') // keep|true|false
+  const [animatingRecords, setAnimatingRecords] = useState(new Set()) // 正在动画的记录ID
 
   // 状态
   const [isLoading, setIsLoading] = useState(false) // 仅用于列表加载/初始化
@@ -53,6 +54,10 @@ export default function App() {
   const [sortDir, setSortDir] = useState('asc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
+  const [activeFilters, setActiveFilters] = useState({
+    types: [], // 筛选的记录类型
+    proxied: null, // null | true | false
+  })
 
   // 登录
   const [needLogin, setNeedLogin] = useState(false)
@@ -63,6 +68,41 @@ export default function App() {
   })
 
   const selectedZone = useMemo(() => zones.find(z => z.id === selectedZoneId), [zones, selectedZoneId])
+  
+  // 统计各类型记录数量
+  const recordStats = useMemo(() => {
+    const stats = {}
+    records.forEach(r => {
+      const type = r.type || 'UNKNOWN'
+      stats[type] = (stats[type] || 0) + 1
+    })
+    return stats
+  }, [records])
+
+  // 快速筛选函数
+  function toggleTypeFilter(type) {
+    setActiveFilters(prev => {
+      const newTypes = prev.types.includes(type)
+        ? prev.types.filter(t => t !== type)
+        : [...prev.types, type]
+      return { ...prev, types: newTypes }
+    })
+    setPage(1)
+  }
+
+  function toggleProxiedFilter(proxied) {
+    setActiveFilters(prev => ({
+      ...prev,
+      proxied: prev.proxied === proxied ? null : proxied
+    }))
+    setPage(1)
+  }
+
+  function clearAllFilters() {
+    setActiveFilters({ types: [], proxied: null })
+    setQuery('')
+    setPage(1)
+  }
 
   useEffect(() => { document.documentElement.classList.toggle('dark', dark) }, [dark])
 
@@ -143,10 +183,30 @@ export default function App() {
   }
 
   const visibleRecords = useMemo(() => {
+    let filtered = records
+    
+    // 文本搜索
     const q = query.trim().toLowerCase()
-    if (!q) return records
-    return records.filter(r => (r.name || '').toLowerCase().includes(q) || (r.type || '').toLowerCase().includes(q) || (r.content || '').toLowerCase().includes(q))
-  }, [records, query])
+    if (q) {
+      filtered = filtered.filter(r => 
+        (r.name || '').toLowerCase().includes(q) || 
+        (r.type || '').toLowerCase().includes(q) || 
+        (r.content || '').toLowerCase().includes(q)
+      )
+    }
+    
+    // 类型筛选
+    if (activeFilters.types.length > 0) {
+      filtered = filtered.filter(r => activeFilters.types.includes(r.type))
+    }
+    
+    // 代理状态筛选
+    if (activeFilters.proxied !== null) {
+      filtered = filtered.filter(r => r.proxied === activeFilters.proxied)
+    }
+    
+    return filtered
+  }, [records, query, activeFilters])
 
   const sortedRecords = useMemo(() => {
     const arr = [...visibleRecords]
@@ -441,6 +501,61 @@ export default function App() {
               )}
             </div>
           </div>
+          
+          {/* 快速筛选标签 */}
+          {selectedZoneId && records.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">快速筛选：</span>
+                
+                {/* 类型标签 */}
+                {Object.entries(recordStats).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                  <button
+                    key={type}
+                    onClick={() => toggleTypeFilter(type)}
+                    className={`chip relative ${activeFilters.types.includes(type) ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 ring-2 ring-indigo-500' : ''}`}
+                  >
+                    <span className={`inline-block w-2 h-2 rounded-full mr-1 ${typeCircleClass(type)}`}></span>
+                    {type} ({count})
+                  </button>
+                ))}
+                
+                {/* 代理状态标签 */}
+                <button
+                  onClick={() => toggleProxiedFilter(true)}
+                  className={`chip ${activeFilters.proxied === true ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200 ring-2 ring-emerald-500' : ''}`}
+                >
+                  <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full mr-1"></span>
+                  Proxied ({records.filter(r => r.proxied).length})
+                </button>
+                
+                <button
+                  onClick={() => toggleProxiedFilter(false)}
+                  className={`chip ${activeFilters.proxied === false ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200 ring-2 ring-gray-500' : ''}`}
+                >
+                  <span className="inline-block w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
+                  Direct ({records.filter(r => !r.proxied).length})
+                </button>
+                
+                {/* 清除筛选 */}
+                {(activeFilters.types.length > 0 || activeFilters.proxied !== null || query) && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="btn btn-outline px-2 py-1 text-xs ml-2"
+                  >
+                    清除筛选
+                  </button>
+                )}
+              </div>
+              
+              {/* 筛选结果提示 */}
+              {(activeFilters.types.length > 0 || activeFilters.proxied !== null) && (
+                <div className="text-xs text-gray-500 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                  已筛选 {visibleRecords.length} / {records.length} 条记录
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {!!error && (
@@ -499,7 +614,11 @@ export default function App() {
         {/* 移动端卡片 */}
         <div className="md:hidden grid gap-4">
           {pageRecords.map((r, index) => (
-            <div key={r.id} className="card p-4 hover:shadow-xl transition-all duration-300" style={{animationDelay: `${index * 100}ms`}}>
+            <div 
+              key={r.id} 
+              className={`card p-4 hover:shadow-xl transition-all duration-300 ${animatingRecords.has(r.id) ? 'record-update' : ''} record-enter`}
+              style={{animationDelay: `${index * 50}ms`}}
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <input 
@@ -531,13 +650,13 @@ export default function App() {
             </div>
           ))}
           {isLoading && !pageRecords.length && (
-            <div className="card p-4 gradient-shimmer">
+            <div className="card p-4 loading-shimmer bounce-in">
               <div className="h-5 w-1/3 bg-gray-200 dark:bg-gray-600 rounded mb-3"></div>
               <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-600 rounded"></div>
             </div>
           )}
           {!isLoading && !pageRecords.length && (
-            <div className="text-center text-gray-500 py-12 card">
+            <div className="text-center text-gray-500 py-12 card bounce-in">
               <div className="text-6xl mb-4">📋</div>
               <div className="text-lg font-medium mb-2">{selectedZone ? '暂无记录' : '请选择域名'}</div>
               <div className="text-sm">{selectedZone ? '开始添加DNS记录吧' : '选择域名后查看解析记录'}</div>
