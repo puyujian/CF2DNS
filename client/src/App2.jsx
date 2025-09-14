@@ -147,10 +147,10 @@ export default function App() {
         if (operation) {
           const operationVerified = verifyOperation(operation, recordsData)
           if (!operationVerified) {
-            // 操作未生效，延迟重试
+            // 操作未生效，延迟重试，但不更新UI状态，保持乐观更新
             if (!background) setIsLoading(false)
-            setTimeout(() => fetchRecords(zoneId, true, true, operation), 1000)
-            return recordsData
+            setTimeout(() => fetchRecords(zoneId, true, true, operation), 1500)
+            return // 直接返回，不更新记录状态
           }
         }
         
@@ -387,29 +387,44 @@ export default function App() {
 
   async function handleDelete(record) {
     if (!selectedZoneId || !record?.id) return
+    
+    // 乐观更新：先从UI中移除记录
+    const originalRecords = records
+    const originalCache = recordsCache[selectedZoneId]
+    
+    setRecords(prev => prev.filter(r => r.id !== record.id))
+    setSelectedIds(prev => prev.filter(id => id !== record.id))
+    // 更新缓存
+    setRecordsCache(prev => {
+      if (prev[selectedZoneId]) {
+        return {
+          ...prev,
+          [selectedZoneId]: {
+            ...prev[selectedZoneId],
+            data: prev[selectedZoneId].data.filter(r => r.id !== record.id)
+          }
+        }
+      }
+      return prev
+    })
+    
     try {
       const { data } = await api.delete(`/api/zones/${selectedZoneId}/dns_records/${record.id}`)
       if (!data?.success) throw new Error(data?.message || '删除失败')
-      setRecords(prev => prev.filter(r => r.id !== record.id))
-      setSelectedIds(prev => prev.filter(id => id !== record.id))
-      // 更新缓存
-      setRecordsCache(prev => {
-        if (prev[selectedZoneId]) {
-          return {
-            ...prev,
-            [selectedZoneId]: {
-              ...prev[selectedZoneId],
-              data: prev[selectedZoneId].data.filter(r => r.id !== record.id)
-            }
-          }
-        }
-        return prev
-      })
+      
       notify('success', '删除成功')
-      // 后台验证删除是否真正生效
+      // 后台验证删除是否真正生效，但不立即更新UI
       const operation = { type: 'delete', recordId: record.id }
       fetchRecords(selectedZoneId, true, true, operation)
     } catch (e) {
+      // 删除失败，回滚UI状态
+      setRecords(originalRecords)
+      if (originalCache) {
+        setRecordsCache(prev => ({
+          ...prev,
+          [selectedZoneId]: originalCache
+        }))
+      }
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '删除失败'
       notify('error', msg)
     }
@@ -444,22 +459,44 @@ export default function App() {
     if (!selectedZoneId || !selectedIds.length) return
     const ok = window.confirm(`确定删除选中的 ${selectedIds.length} 条记录吗？此操作不可撤销！`)
     if (!ok) return
+    
+    // 保存原始状态用于可能的回滚
+    const originalRecords = records
+    const originalCache = recordsCache[selectedZoneId]
+    const originalSelectedIds = [...selectedIds]
+    
     setIsLoading(true)
     try {
-      for (const id of selectedIds) {
+      // 先乐观更新UI
+      setRecords(prev => prev.filter(r => !selectedIds.includes(r.id)))
+      setSelectedIds([])
+      
+      // 批量删除API调用
+      for (const id of originalSelectedIds) {
         // eslint-disable-next-line no-await-in-loop
         const { data } = await api.delete(`/api/zones/${selectedZoneId}/dns_records/${id}`)
         if (!data?.success) throw new Error(data?.message || '删除失败')
       }
+      
       notify('success', '批量删除成功')
-      setSelectedIds([])
-      // 清除缓存并强制刷新
+      // 清除缓存并在后台验证
       clearCache(selectedZoneId)
-      await fetchRecords(selectedZoneId, false, true)
+      fetchRecords(selectedZoneId, true, true)
     } catch (e) {
+      // 删除失败，回滚UI状态
+      setRecords(originalRecords)
+      setSelectedIds(originalSelectedIds)
+      if (originalCache) {
+        setRecordsCache(prev => ({
+          ...prev,
+          [selectedZoneId]: originalCache
+        }))
+      }
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量删除失败'
       notify('error', msg)
-    } finally { setIsLoading(false) }
+    } finally { 
+      setIsLoading(false) 
+    }
   }
 
   async function handleLogin(e) {
