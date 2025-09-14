@@ -38,6 +38,7 @@ export default function App() {
   const [zones, setZones] = useState([])
   const [selectedZoneId, setSelectedZoneId] = useState('')
   const [records, setRecords] = useState([])
+  const [recordsCache, setRecordsCache] = useState({}) // 缓存：{ zoneId: { data: records[], timestamp: number } }
   const [selectedIds, setSelectedIds] = useState([])
   const [editing, setEditing] = useState(null)
   const [batchOpen, setBatchOpen] = useState(false)
@@ -48,7 +49,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false) // 仅用于列表加载/初始化
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [sortKey, setSortKey] = useState('name') // name|type|content|proxied
+  const [sortKey, setSortKey] = useState('type') // name|type|content|proxied
   const [sortDir, setSortDir] = useState('asc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -83,16 +84,44 @@ export default function App() {
     } finally { setIsLoading(false) }
   }
 
-  async function fetchRecords(zoneId, background = false) {
+  async function fetchRecords(zoneId, background = false, forceRefresh = false) {
     if (!zoneId) return
+    
+    const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
+    const now = Date.now()
+    const cached = recordsCache[zoneId]
+    
+    // 检查缓存是否有效
+    if (!forceRefresh && cached && (now - cached.timestamp < CACHE_DURATION)) {
+      setRecords(cached.data)
+      return
+    }
+    
     if (!background) { setIsLoading(true); setError('') }
     try {
       const { data } = await api.get(`/api/zones/${zoneId}/dns_records`)
-      if (data?.success) setRecords(Array.isArray(data.result) ? data.result : (Array.isArray(data?.data?.result) ? data.data.result : []))
-      else throw new Error(data?.message || '加载解析记录失败')
+      if (data?.success) {
+        const recordsData = Array.isArray(data.result) ? data.result : (Array.isArray(data?.data?.result) ? data.data.result : [])
+        setRecords(recordsData)
+        // 更新缓存
+        setRecordsCache(prev => ({
+          ...prev,
+          [zoneId]: { data: recordsData, timestamp: now }
+        }))
+      } else {
+        throw new Error(data?.message || '加载解析记录失败')
+      }
     } catch (e) {
       if (e?.response?.status === 401) { setNeedLogin(true); setError('') }
-      else { const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载解析记录失败'; setError(msg); notify('error', msg) }
+      else { 
+        const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '加载解析记录失败'
+        setError(msg); notify('error', msg)
+        // 如果请求失败但有缓存，使用缓存数据
+        if (cached) {
+          setRecords(cached.data)
+          notify('info', '网络异常，显示缓存数据')
+        }
+      }
     } finally { if (!background) setIsLoading(false) }
   }
 
@@ -191,6 +220,15 @@ export default function App() {
     }
   }
 
+  // 清除指定域名的缓存
+  function clearCache(zoneId) {
+    setRecordsCache(prev => {
+      const newCache = { ...prev }
+      delete newCache[zoneId]
+      return newCache
+    })
+  }
+
   // 新增/修改（无感刷新）
   async function handleUpsert(input) {
     if (!selectedZoneId) return
@@ -200,15 +238,43 @@ export default function App() {
         const { data } = await api.put(`/api/zones/${selectedZoneId}/dns_records/${editing.id}`, body)
         if (!data?.success) throw new Error(data?.message || '修改失败')
         setRecords(prev => prev.map(r => r.id === editing.id ? (data.result || { ...r, ...body }) : r))
+        // 更新缓存
+        setRecordsCache(prev => {
+          if (prev[selectedZoneId]) {
+            return {
+              ...prev,
+              [selectedZoneId]: {
+                ...prev[selectedZoneId],
+                data: prev[selectedZoneId].data.map(r => r.id === editing.id ? (data.result || { ...r, ...body }) : r)
+              }
+            }
+          }
+          return prev
+        })
         notify('success', '修改成功')
       } else {
         const { data } = await api.post(`/api/zones/${selectedZoneId}/dns_records`, body)
         if (!data?.success) throw new Error(data?.message || '新增失败')
-        setRecords(prev => [ ...(data.result ? [data.result] : []), ...prev ])
+        const newRecord = data.result || { ...body, id: Date.now() }
+        setRecords(prev => [newRecord, ...prev])
+        // 更新缓存，将新记录添加到顶部
+        setRecordsCache(prev => {
+          if (prev[selectedZoneId]) {
+            return {
+              ...prev,
+              [selectedZoneId]: {
+                ...prev[selectedZoneId],
+                data: [newRecord, ...prev[selectedZoneId].data]
+              }
+            }
+          }
+          return prev
+        })
         notify('success', '添加成功')
       }
       setEditing(null)
-      await fetchRecords(selectedZoneId)
+      // 延迟后台刷新以确保数据同步，但不影响用户体验
+      setTimeout(() => fetchRecords(selectedZoneId, true, true), 2000)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '操作失败'
       notify('error', msg)
@@ -222,8 +288,22 @@ export default function App() {
       if (!data?.success) throw new Error(data?.message || '删除失败')
       setRecords(prev => prev.filter(r => r.id !== record.id))
       setSelectedIds(prev => prev.filter(id => id !== record.id))
+      // 更新缓存
+      setRecordsCache(prev => {
+        if (prev[selectedZoneId]) {
+          return {
+            ...prev,
+            [selectedZoneId]: {
+              ...prev[selectedZoneId],
+              data: prev[selectedZoneId].data.filter(r => r.id !== record.id)
+            }
+          }
+        }
+        return prev
+      })
       notify('success', '删除成功')
-      await fetchRecords(selectedZoneId)
+      // 延迟后台刷新确保数据同步
+      setTimeout(() => fetchRecords(selectedZoneId, true, true), 1000)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '删除失败'
       notify('error', msg)
@@ -246,7 +326,9 @@ export default function App() {
       }
       notify('success', '批量修改成功')
       setBatchOpen(false); setBatchTTL(''); setBatchProxied('keep')
-      await fetchRecords(selectedZoneId)
+      // 清除缓存并强制刷新
+      clearCache(selectedZoneId)
+      await fetchRecords(selectedZoneId, false, true)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量修改失败'
       notify('error', msg)
@@ -266,7 +348,9 @@ export default function App() {
       }
       notify('success', '批量删除成功')
       setSelectedIds([])
-      await fetchRecords(selectedZoneId)
+      // 清除缓存并强制刷新
+      clearCache(selectedZoneId)
+      await fetchRecords(selectedZoneId, false, true)
     } catch (e) {
       const msg = e?.response?.data?.data?.errors?.[0]?.message || e?.response?.data?.message || e.message || '批量删除失败'
       notify('error', msg)
@@ -343,7 +427,13 @@ export default function App() {
               <button className="btn btn-outline" onClick={fetchZones}>刷新域名</button>
               {selectedZoneId && (
                 <>
-                  <button className="btn btn-primary" onClick={() => fetchRecords(selectedZoneId)}>刷新记录</button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => fetchRecords(selectedZoneId, false, true)}
+                    title="强制刷新（忽略缓存）"
+                  >
+                    刷新记录
+                  </button>
                   <button className="btn btn-outline" onClick={() => setEditing({})}>添加记录</button>
                   <button className="btn btn-outline" disabled={!selectedIds.length} onClick={() => setBatchOpen(true)}>批量修改</button>
                   <button className="btn btn-danger" disabled={!selectedIds.length} onClick={handleBatchDelete}>批量删除</button>
@@ -457,7 +547,15 @@ export default function App() {
 
         {/* 分页条 */}
         <div className="flex items-center justify-between">
-          <div className="text-sm">共 {sortedRecords.length} 条，页 {page}/{totalPages}</div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm">共 {sortedRecords.length} 条，页 {page}/{totalPages}</div>
+            {selectedZoneId && recordsCache[selectedZoneId] && (
+              <div className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                已缓存 {Math.floor((Date.now() - recordsCache[selectedZoneId].timestamp) / 1000 / 60)}分钟前
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <button className="btn btn-outline" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>上一页</button>
             <button className="btn btn-outline" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>下一页</button>
