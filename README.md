@@ -390,6 +390,7 @@ npm start
 |--------|------|--------|------|
 | `CLOUDFLARE_API_TOKEN` | ✅ | - | Cloudflare API Token |
 | `PORT` | ❌ | `3000` | 服务监听端口 |
+| `ADMIN_PASSWORD` | ❌ | - | 后台管理密码（可选，启用后需要登录才能访问） |
 | `CORS_ORIGIN` | ❌ | - | CORS 允许的源（开发环境用） |
 | `VITE_API_BASE` | ❌ | - | 前端 API 基础地址 |
 
@@ -400,12 +401,36 @@ npm start
 CLOUDFLARE_API_TOKEN=your_token_here
 PORT=3000
 CORS_ORIGIN=http://localhost:5173
+# 可选：启用后台登录验证
+# ADMIN_PASSWORD=your_admin_password
 ```
 
 **生产环境 (.env)**
 ```bash
 CLOUDFLARE_API_TOKEN=your_token_here
 PORT=3000
+# 推荐：生产环境启用登录验证
+ADMIN_PASSWORD=your_secure_password
+```
+
+### 🔐 后台登录功能（可选）
+
+如果设置了 `ADMIN_PASSWORD` 环境变量，系统将启用后台登录验证：
+
+- 所有 `/api/*` 路由都需要先登录才能访问
+- 首次访问时会自动跳转到登录界面
+- 登录成功后可正常使用所有功能
+- 如果不设置此变量，则直接可以访问管理界面
+
+**Docker 部署示例（启用登录）：**
+```bash
+docker run -d \
+  --name cf2dns \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  -e CLOUDFLARE_API_TOKEN=你的Token \
+  -e ADMIN_PASSWORD=你的管理密码 \
+  ghcr.io/puyujian/cf2dns:latest
 ```
 
 ## 📚 API 文档
